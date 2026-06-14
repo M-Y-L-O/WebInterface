@@ -1,13 +1,20 @@
-import { Network } from "vis-network";
-import { DataSet } from "vis-data";
+"use client"
 import {IDockviewPanelProps} from "dockview-core";
+import {useEffect, useRef, useCallback, useMemo, useState} from "react";
+
+import {ReactFlow, Background, Controls, MiniMap, Node, Edge, OnSelectionChangeParams, Position, useNodesState, useEdgesState} from "@xyflow/react";
+import '@xyflow/react/dist/style.css';
+
+import ELK from "elkjs/lib/elk.bundled.js";
+
+import {useVisualisationStore} from "@/lib/store";
+
 
 export interface GraphNode {
-    id: string | number;
+    id: number|string;
     label: string;
     title?: string;
-    color?: any;
-    font?: { color?: string; size?: number; fontFamily?: string; align?: string };
+    style?: any;
     group?: string;
     level?: number;
     [key: string]: any;
@@ -18,6 +25,11 @@ export interface GraphEdge {
     from: string | number;
     to: string | number;
     [key: string]: any;
+}
+
+const nodeDefaults = {
+    sourcePosition: Position.Right,
+    targetPosition: Position.Left
 }
 
 const NODE_TYPE_CATEGORIES: Record<string, string> = {
@@ -47,247 +59,189 @@ export const categoryColorMap: Record<string, { normal: string; highlight: strin
     other: { normal: "#777", highlight: "#999" },
 };
 
-export let nodes: DataSet<GraphNode> | undefined;
-export let edges: DataSet<GraphEdge> | undefined;
-
 export function getNodeCategory(label: string): string {
     for (const [category, keywords] of Object.entries(NODE_TYPE_CATEGORIES)) {
-        if (keywords.split(" ").some((word) => label.includes(word))) {
+        if (keywords.split(" ").some((word) => label.toLowerCase().includes(word.toLowerCase()))) {
             return category;
         }
     }
     return "other";
 }
 
-function simplifyNodeName(node: GraphNode): GraphNode {
-    // normalize label and remove odd tokens safely
-    node.label = (node.label || "").toLowerCase();
-
-    node.label = node.label.replace(/lstm/g, "");
-    node.label = node.label.replace(/model/g, "");
-    node.label = node.label.replace(/statefeedback/g, "");
-    node.label = node.label.replace(/attention/g, "");
-    node.label = node.label.replace(/norm/g, "");
-    node.label = node.label.replace(/featureprocessor/g, "");
-    node.label = node.label.replace(/inputadapter/g, "");
-    node.label = node.label.replace(/layer/g, "");
-    node.label = node.label.replace(/output/g, "");
-    node.label = node.label.replace(/_/g, "");
-
-    // strip non-alpha characters
-    node.label = node.label.replace(/[^a-zA-Z]/g, "");
-
-    return node;
+function simplifyNodeName(node: GraphNode): string {
+    return (node.label || "")
+        .toLowerCase()
+        .replace(/lstm|model|attention|norm|layer|output|input|_/g, "")
+        .replace(/[^a-zA-Z]/g, "");
 }
 
-function colorNode(node: GraphNode): GraphNode {
-    const category = getNodeCategory(node.label || "");
+function colorNode(node: Node): Node {
+    const category = getNodeCategory(node.data.label as string || "");
     const map = categoryColorMap[category] || categoryColorMap.other;
-    node.color = {
-        border: map.normal,
+    node.style = {
         background: map.normal,
-        highlight: {
-            border: map.highlight,
-            background: map.highlight,
-        },
+        color: "#fff",
+        border: `1px solid ${map.highlight}`,
+        borderRadius: 6,
+        padding: 10
     };
 
     return node;
 }
 
-function assignLevels(nodesArr: GraphNode[], edgesArr: GraphEdge[]): GraphNode[] {
-    const levelMap: Record<string | number, number> = {};
-    const visited = new Set<string | number>();
+const elk = new ELK();
 
-    const incomingMap: Record<string | number, number> = {};
-    edgesArr.forEach((e) => {
-        incomingMap[e.to] = (incomingMap[e.to] || 0) + 1;
-    });
+async function layoutElements(nodes:Node[], edges:Edge[], vertical:boolean){
+    const graph = {
+        id: "root",
+        layoutOptions: {
+            "elk.direction": vertical ? "DOWN" : "RIGHT",
+            "elk.algorithm": "layered",
 
-    const queue = nodesArr.filter((n) => !incomingMap[n.id]);
-    queue.forEach((n) => (levelMap[n.id] = 0));
+            "elk.spacing.nodeNode": "60",
+            "elk.layered.spacing.nodeNodeBetweenLayers": "80",
 
-    while (queue.length) {
-        const node = queue.shift() as GraphNode;
-        visited.add(node.id);
-        const level = levelMap[node.id];
+            "elk.layered.crossingMinimization.strategy": "LAYER_SWEEP",
 
-        edgesArr
-            .filter((e) => e.from === node.id)
-            .forEach((e) => {
-                const nextId = e.to;
-                if (!visited.has(nextId)) {
-                    levelMap[nextId] = Math.max(levelMap[nextId] || 0, level + 1);
-                    const nextNode = nodesArr.find((n) => n.id === nextId);
-                    if (nextNode) queue.push(nextNode);
-                }
-            });
+            "elk.layered.nodePlacement.strategy": "BRANDES_KOEPF",
+
+            "elk.edgeRouting": "ORTHOGONAL",
+            "elk.layered.unnecessaryBendpoints": "true",
+
+            "elk.layered.compaction.postCompaction.strategy": "LEFT_RIGHT_CONSTRAINT_LOCKING",
+
+        },
+        children: nodes.map((node) => ({
+            id: node.id,
+            width: node.width || 180,
+            height: node.height || 40,
+        })),
+        edges: edges.map((edge) => ({
+            id: edge.id || `${edge.source}-${edge.target}`,
+            source: edge.source,
+            target: edge.target,
+        }))
     }
+    const layout = await elk.layout(graph as any);
 
-    nodesArr.forEach((n) => {
-        n.level = levelMap[n.id] || 0;
-    });
+    const updatedNodes = nodes.map((n)=>{
+        const pos = layout.children?.find((c:any)=> c.id === n.id);
+        return{
+            ...n,
+            position: {
+                x: pos?.x || 0,
+                y: pos?.y || 0,
+            }
+        }
+    })
 
-    return nodesArr;
+    return updatedNodes;
 }
 
-export async function createVisualNetwork2D(
-    results: { nodes: GraphNode[]; edges: GraphEdge[] },
-    ctx: HTMLElement,
-    constants?: boolean,
-    physicsEnabled = true,
-    vertical = false,
-    handleSelect: (node?: GraphNode | null) => void = () => {}
-): Promise<Network> {
-    let rawNodes = results.nodes || [];
-    let rawEdges = results.edges || [];
 
-    nodes = new DataSet<GraphNode>(rawNodes);
-    edges = new DataSet<GraphEdge>(rawEdges);
 
-    if (!constants) {
-        let newEdges: GraphEdge[] = [];
-        const nodeMap = new Map<string | number, GraphNode>();
-        const incomingEdges = new Map<string | number, GraphEdge[]>();
-        const outgoingEdges = new Map<string | number, GraphEdge[]>();
+export default function Visualiser(props: IDockviewPanelProps){
+    const visRes = useVisualisationStore(state => state.visualisation);
+    const setVis = useVisualisationStore(state => state.setVisualisation);
 
-        rawNodes.forEach((node) => nodeMap.set(node.id, node));
-        rawEdges.forEach((edge) => {
-            if (!incomingEdges.has(edge.to)) incomingEdges.set(edge.to, []);
-            if (!outgoingEdges.has(edge.from)) outgoingEdges.set(edge.from, []);
-            incomingEdges.get(edge.to)!.push(edge);
-            outgoingEdges.get(edge.from)!.push(edge);
-        });
+    const [nodes, setNodes, onNodesChange] = useNodesState([]);
+    const [edges, setEdges, onEdgeChange] = useEdgesState([]);
 
+    const buildGraph = useCallback(async () => {
+        if (!visRes) {
+            return;
+        }
+
+        const parsed = JSON.parse(visRes);
+
+        let rawNodes: GraphNode[] = parsed.nodes || [];
+        let rawEdges: GraphEdge[] = parsed.edges || [];
+
+        const constantsToRemove = new Set<string|number>();
         const cleanNodes: GraphNode[] = [];
-        const constantsToRemove = new Set<string | number>();
 
+        //filter out constant nodes
         rawNodes.forEach((node) => {
-            if ((node.label || "").includes("Constant")) {
+            if (node.label.includes("Constant")) {
                 constantsToRemove.add(node.id);
             } else {
                 cleanNodes.push(node);
             }
-        });
+        })
+
+        //remove edges to and from constants
+        let newEdges: GraphEdge[] = [];
 
         rawEdges.forEach((edge) => {
-            const from = edge.from;
-            const to = edge.to;
-
-            if (constantsToRemove.has(from)) {
-                const sources = incomingEdges.get(from) || [];
-                sources.forEach((sourceEdge) => {
-                    newEdges.push({ from: sourceEdge.from, to: to });
-                });
-            } else if (constantsToRemove.has(to)) {
-                const targets = outgoingEdges.get(to) || [];
-                targets.forEach((targetEdge) => {
-                    newEdges.push({ from: from, to: targetEdge.to });
-                });
+            if(constantsToRemove.has(edge.from)){
+                newEdges.push(...rawEdges.filter((e)=>e.to === edge.from).map(e=>({
+                    from: e.from,
+                    to: edge.to
+                })));
+            } else if(constantsToRemove.has(edge.to)){
+                newEdges.push(...rawEdges.filter((e)=>e.from === edge.to).map(e=>({
+                    from: edge.from,
+                    to: e.to
+                })));
             } else {
                 newEdges.push(edge);
             }
-        });
+        })
 
+        //Clean node dupes
         const seen = new Set<string>();
-        newEdges = newEdges.filter((edge) => {
-            const key = `${edge.from}->${edge.to}`;
-            if (seen.has(key)) return false;
+        newEdges = newEdges.filter((edge)=>{
+            const key= `${edge.from}-${edge.to}`;
+            if(seen.has(key))
+                return false;
             seen.add(key);
             return true;
-        });
+        })
 
-        nodes = new DataSet<GraphNode>(cleanNodes);
-        edges = new DataSet<GraphEdge>(newEdges);
-    }
+        let rfNodes: Node[] = cleanNodes.map((node)=>({
+            id: String(node.id),
+            data: {label: simplifyNodeName(node) || node.label},
+            position: {x:0, y:0},
+            ...nodeDefaults
+        }))
 
-    // sanitize and style nodes
-    nodes.forEach((node: GraphNode) => {
+        let rfEdges: Edge[] = newEdges.map((edge, i)=>({
+            id: String(i),
+            source: String(edge.from),
+            target: String(edge.to),
+            animated:true
+        }))
+
+        rfNodes = rfNodes.map((node)=> colorNode(node))
+
+        const positionedNodes = await layoutElements(rfNodes, rfEdges, false);
+
         // @ts-ignore
-        node.title = (node.title || "").replace(/doc_string:\s+"(?:[^"\\]|\\.|\\\n)*"/gs, "");
-        simplifyNodeName(node);
-        colorNode(node);
-        node.font = {
-            color: "#ffffff",
-            size: 12,
-            fontFamily: "Montserrat",
-            align: "center",
-        };
-        node.group = node.group || "";
-    });
+        setNodes(positionedNodes);
+        // @ts-ignore
+        setEdges(rfEdges);
+    }, [visRes])
 
-    const options: any = {
-        layout: {
-            hierarchical: {
-                enabled: true,
-                direction: vertical ? "UD" : "LR",
-                sortMethod: "hubsize",
-                levelSeparation: 100,
-                nodeSpacing: 60,
-                treeSpacing: 60,
-                blockShifting: true,
-                edgeMinimization: true,
-                parentCentralization: true,
-            },
-        },
-        nodes: {
-            shape: "box",
-            margin: 10,
-            font: { size: 14, face: "arial" },
-            borderWidth: 1,
-            shadow: true,
-            widthConstraint: { maximum: 100 },
-        },
-        edges: {
-            arrows: { to: { enabled: true, scaleFactor: 0.5 } },
-            smooth: {
-                enabled: true,
-                type: "cubicBezier",
-                forceDirection: "horizontal",
-                roundness: 0.5,
-            },
-        },
-        physics: {
-            enabled: physicsEnabled,
-            stabilization: {
-                enabled: true,
-                iterations: 1000,
-            },
-            hierarchicalRepulsion: {
-                centralGravity: 0.0,
-                springLength: 40,
-                springConstant: 0.01,
-                nodeDistance: 40,
-            },
-            solver: "hierarchicalRepulsion",
-        },
-    };
-
-    const network = new Network(ctx, { nodes, edges }, options);
-
-    network.once("stabilizationIterationsDone", () => {
-        try {
-            network.fit({ animation: { duration: 500, easingFunction:"easeInOutCubic" } });
-        } catch (e) {
-            // ignore fit errors
+    useEffect(()=>{
+        if(!visRes)
+        {
+            const model = sessionStorage.getItem("model");
+            if(model){
+                setVis(model);
+            }
         }
-    });
-
-    network.on("selectNode", (params: any) => {
-        if (!params || !params.nodes || params.nodes.length === 0) return;
-        const nodeId = params.nodes[0];
-        const node = nodes?.get(nodeId as any)[0] as GraphNode | null;
-        handleSelect(node);
-    });
-
-    return network;
-}
+    },[])
 
 
-export default function Visualiser(props: IDockviewPanelProps){
 
-    return <div>
-        <h1>Test</h1>
-        <button>Halalo</button>
+    useEffect(()=>{
+        buildGraph();
+    }, [buildGraph])
+    return <div className={"w-full h-full"}>
+        <ReactFlow nodes={nodes} edges={edges} onNodesChange={onNodesChange} onEdgesChange={onEdgeChange} fitView colorMode={"dark"}>
+            <Background/>
+            <Controls/>
+            <MiniMap/>
+        </ReactFlow>
     </div>
 }

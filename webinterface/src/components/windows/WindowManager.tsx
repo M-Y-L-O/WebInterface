@@ -1,10 +1,16 @@
 "use client"
-import {DockviewReact,  DockviewReadyEvent} from "dockview-react";
+import {DockviewReact,  DockviewReadyEvent, DockviewTheme} from "dockview-react";
 import {useDockviewStore} from "@/lib/store";
 import {components} from "@/lib/windows/windowTypes";
 import "dockview-react/dist/styles/dockview.css"
+import Styles from "./WindowTheme.module.css"
 
-
+const Theme:DockviewTheme = {
+    name:"MYLO",
+    className:Styles.MYLOTheme,
+    colorScheme:"dark",
+    tabAnimation:"smooth",
+}
 
 export default function WindowManager(){
     const setApi = useDockviewStore(state => state.setApi);
@@ -18,6 +24,6 @@ export default function WindowManager(){
         <DockviewReact
         components={components}
         onReady={onReady}
-        className={"dockview-theme-abyss"}
+        theme={Theme}
       />)
 }

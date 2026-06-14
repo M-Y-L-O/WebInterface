@@ -59,7 +59,7 @@ export class Client {
             this.MessageSource.close()
     }
 
-    public async LoadModel(modelPath?:string){
+    public async LoadModel(){
         if(this.config.type === "LOCAL"){
             try {
                 return await Request(EndPoints.referenceModel, this.config, this.config.apiKey);
@@ -73,7 +73,7 @@ export class Client {
     public async LoadCSV(csvPath:string){
         if(this.config.type === "LOCAL"){
             try {
-                return await Request(EndPoints.referenceCSV, this.config, {csvPath: csvPath});
+                return await Request(EndPoints.referenceCSV, this.config, csvPath);
             } catch (e) {
                 return new Error("Request failed:", {cause: e})
             }

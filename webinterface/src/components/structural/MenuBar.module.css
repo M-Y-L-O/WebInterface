@@ -1,0 +1,79 @@
+.container{
+    display: flex;
+    position: relative;
+    align-items: center;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 3rem;
+    background-color: #2B2B2B;
+    border-bottom: 1px solid #757575;
+}
+
+.menuHolder{
+    display: flex;
+    align-items: center;
+    border-left: 1px solid #757575;
+}
+
+.homeButton{
+    transition: 0.2s ease-in-out;
+    height: 100%;
+    padding: 0 0.5rem;
+}
+
+.homeButton img{
+    height: 2.3rem;
+}
+
+.homeButton:hover{
+    background-color: #1E1E1E;
+}
+
+.menuItem{
+    position: relative;
+    display: flex;
+    align-items: center;
+    min-width: 5rem;
+    justify-content: center;
+    height: 100%;
+    color: #666666;
+    transition: 0.2s ease-in-out;
+}
+
+.menuItem button{
+    padding: 0.5rem 1rem;
+    height: 100%;
+    width: 100%;
+}
+
+.menuItem:hover .dropdown{
+    display: flex;
+    flex-direction: column;
+}
+.dropdown{
+    display: none;
+    position: absolute;
+    top:100%;
+    left: 0;
+
+    width: fit-content;
+
+    background-color: #1E1E1E;
+
+    z-index: 1000;
+}
+
+
+.menuItem button:hover{
+    color: #ededed;
+}
+
+.menuItem:hover{
+    background-color: #1E1E1E;
+}
+
+.dropdown button{
+    text-wrap: nowrap;
+    padding: 0.5rem 1rem;
+}

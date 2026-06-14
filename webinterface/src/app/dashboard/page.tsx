@@ -1,8 +1,9 @@
 "use client"
 import MenuBar from "@/components/structural/MenuBar";
 import WindowManager from "@/components/windows/WindowManager";
-import {useClientStore} from "@/lib/store";
+import {useClientStore, useVisualisationStore} from "@/lib/store";
 import {ClientConfig, ClientType} from "@/lib/client/ClientTypes";
+import "./styles.css"
 
 export default function Dashboard() {
     const clientConfig:ClientConfig = {
@@ -12,10 +13,9 @@ export default function Dashboard() {
         apiKey: "1234567890",
     }
 
-    const setConfig= useClientStore(state => state.setConfig);
-    setConfig(clientConfig);
+
     return(
-        <main className={"w-[100vw] h-[100vh]"}>
+        <main className={"dashCont"}>
             <MenuBar />
             <div className={"w-[100vw] h-[100%]"}>
                 <WindowManager/>

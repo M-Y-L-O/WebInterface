@@ -35,6 +35,14 @@ export const useClientStore = create<ClientStore>((set)=>({
         config:null,
         client:null,
     })
+}))
 
+interface VisualisationResultStore{
+    visualisation:string|null;
+    setVisualisation:(visualisation:string)=>void;
+}
 
+export const useVisualisationStore = create<VisualisationResultStore>((set)=>({
+    visualisation:null,
+    setVisualisation:(visualisation)=>set({visualisation})
 }))
