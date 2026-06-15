@@ -16,6 +16,10 @@ export default function WindowManager(){
     const setApi = useDockviewStore(state => state.setApi);
     function onReady(event:DockviewReadyEvent){
         event.api.addPanel({id: 'Visualiser', component: 'Visualiser', title: 'Visualiser'})
+        event.api.addPanel({id:'Properties', component:'Properties', title:'Properties', position: {
+                referencePanel: 'Visualiser',
+                direction: 'right',
+            }, initialWidth:400})
         console.log("ready")
         setApi(event.api);
     }

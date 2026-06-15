@@ -1,0 +1,66 @@
+.authCont{
+    width: 100vw;
+    height: 100vh;
+    overflow: hidden;
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+}
+
+.special{
+    height: 100%;
+    width: 100%;
+    column-span: 1;
+    background-color: var(--card-background);
+    overflow: hidden;
+
+}
+
+.form{
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    gap: 1rem;
+    column-span: 1;
+}
+
+.form button{
+    padding: 0.5rem 1rem;
+    border-radius: 0.5rem;
+    width: 70%;
+    font-weight: bold;
+    transition: 0.2s ease-in-out;
+}
+
+.form img{
+    border-bottom: var(--text-light) 1px solid;
+    padding: 2rem;
+    margin-bottom: 1rem;
+}
+
+.form h1{
+    font-size: 3rem;
+    font-weight: bolder;
+}
+
+.form .google{
+    background-color: #f3f3f3;
+    color: #333;
+    border: 3px solid #f3f3f3;
+}
+
+.form .github{
+    background-color: #763c9e;
+    border: 3px solid #763c9e;
+    color: #fff;
+}
+
+.github:hover{
+    background-color: #333;
+    color: #763c9e;
+}
+
+.google:hover{
+    background-color: #333;
+    color: #f3f3f3;
+}

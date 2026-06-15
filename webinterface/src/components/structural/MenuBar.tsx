@@ -15,12 +15,20 @@ export default function MenuBar(){
     const client = useClientStore(state => state.client);
     const setVis =         useVisualisationStore(state => state.setVisualisation)
     const [hoveredIndex, setHoveredIndex] = React.useState<number | null>(null);
+
     async function LoadModel(){
         if(!client)
             return;
         const res = await client.LoadModel();
         setVis(JSON.stringify(res));
         sessionStorage.setItem("model", JSON.stringify(res));
+    }
+
+    async function LoadCSV(){
+        if(!client)
+            return;
+        const res = await client.LoadCSV();
+        console.log(res);
     }
 
     const api = useDockviewStore.getState().api;
@@ -40,14 +48,24 @@ export default function MenuBar(){
     const MenuButtons:ActionButton[] = [
         {
             label:"File",
-            children:[{
-                label:"Import Model",
-                onClick:()=>LoadModel()
-            }]
+            children:[
+                {
+                    label:"Import Model",
+                    onClick:()=>LoadModel()
+                },
+                {
+                    label:"Import CSV",
+                    onClick:()=>LoadCSV()
+                }
+            ]
         },
         {
             label:"Visualizer",
             onClick:()=>addWindow("Visualiser")
+        },
+        {
+            label:"Properties",
+            onClick:()=>addWindow("Properties")
         },
         {
             label:"Settings",

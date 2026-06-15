@@ -51,7 +51,7 @@ export enum EndPoints{
     uploadModel = "/Loadmodel",
     uploadCSV = "/upload-csv",
     referenceModel = "/loadModel",
-    referenceCSV = "/reference-csv",
+    referenceCSV = "/loadCSV",
 
 }
 

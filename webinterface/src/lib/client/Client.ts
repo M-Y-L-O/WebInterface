@@ -70,10 +70,10 @@ export class Client {
     }
 
 
-    public async LoadCSV(csvPath:string){
+    public async LoadCSV(){
         if(this.config.type === "LOCAL"){
             try {
-                return await Request(EndPoints.referenceCSV, this.config, csvPath);
+                return await Request(EndPoints.referenceCSV, this.config, this.config.apiKey);
             } catch (e) {
                 return new Error("Request failed:", {cause: e})
             }

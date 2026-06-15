@@ -46,3 +46,29 @@ export const useVisualisationStore = create<VisualisationResultStore>((set)=>({
     visualisation:null,
     setVisualisation:(visualisation)=>set({visualisation})
 }))
+
+export interface Session{
+    expires: string;
+    user: {
+        email: string;
+        image: string;
+        name: string;
+    }
+}
+
+interface UserSessionStore {
+    Session:Session|null;
+    setSession:(session:any)=>void;
+}
+
+export const useUserSessionStore = create<UserSessionStore>((set)=>({
+    Session:null,
+    setSession:(Session)=>set({Session})
+}))
+
+interface SelectedStore{
+    selected:any|null;
+    setSelected:(selected:any)=>void;
+}
+
+export const useSelectedStore = create<SelectedStore>((set)=>({selected:null, setSelected:(selected)=>set({selected})}))
