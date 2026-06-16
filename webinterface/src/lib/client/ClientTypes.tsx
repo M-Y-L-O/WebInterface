@@ -45,6 +45,7 @@ export interface ProgressUpdate {
 
 export enum EndPoints{
     health = "/",
+    initialize = "/initialize",
     optimize = "/optimize",
     optimizeStatus = "/optimize-status",
     downloadOptimized = "/download-optimized",

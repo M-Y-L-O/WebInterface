@@ -1,7 +1,12 @@
 .container{
+    background-color: var(--card-background);
     display: flex;
     flex-direction: column;
-    background-color: var(--card-background);
+    gap: 1rem;
+    max-height: 100%;
+    overflow-y: auto;
+    overflow-x: hidden;
+    text-wrap: wrap;
 }
 
 .nodeTitle{
@@ -27,6 +32,7 @@
 
 .section ul{
     list-style-type: circle;
+    list-style-position: inside;
 }
 
 .section li {

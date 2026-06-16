@@ -19,6 +19,7 @@ export default function MenuBar(){
     async function LoadModel(){
         if(!client)
             return;
+        console.log("Loading model");
         const res = await client.LoadModel();
         setVis(JSON.stringify(res));
         sessionStorage.setItem("model", JSON.stringify(res));

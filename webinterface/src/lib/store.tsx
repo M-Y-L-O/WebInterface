@@ -22,6 +22,17 @@ interface ClientStore{
     clearClient:()=>void;
 }
 
+interface DockviewLayoutState{
+    layout:string|null;
+
+    setLayout:(layout:string)=>void;
+}
+
+export const useDockviewLayoutStore = create<DockviewLayoutState>((set)=>({
+    layout:null,
+    setLayout:(layout)=>set({layout}),
+}))
+
 export const useClientStore = create<ClientStore>((set)=>({
     config:null,
     client:null,

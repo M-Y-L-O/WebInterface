@@ -1,7 +1,7 @@
 "use client";
 
-import {useSelectedStore} from "@/lib/store";
-import {GraphNode, getNodeCategory, colorNode, getNodeColor} from "@/lib/windows/visualiserHelpers";
+import {useSelectedStore, useVisualisationStore} from "@/lib/store";
+import {GraphNode, getNodeCategory, getNodeColor} from "@/lib/windows/visualiserHelpers";
 import {ReactNode, useState, useEffect} from "react";
 import Styles from "./Properties.module.css"
 
@@ -56,7 +56,7 @@ function NodeInfo(node:GraphNode): ReactNode{
 
     // @ts-ignore
     return (
-        <div className={Styles.container}>
+        <div>
             <div style={{backgroundColor:color}} className={Styles.nodeTitle}>
                 {node.label.toString()}
             </div>
@@ -133,7 +133,11 @@ function NodeInfo(node:GraphNode): ReactNode{
 export default function Properties() {
     const selected = useSelectedStore(state => state.selected);
     const [info, setInfo] = useState<ReactNode>(null);
-
+    const visRes = useVisualisationStore(state => state.visualisation);
+    console.log(visRes);
+    let parsed = (visRes === null || typeof visRes === 'undefined' || visRes === 'undefined')
+        ? null
+        : JSON.parse(visRes);
 
 
     useEffect(() => {
@@ -144,7 +148,37 @@ export default function Properties() {
             setInfo(NodeInfo(selected as GraphNode));
     }, [selected]);
 
-    return <div>
-        {info}
+    return <div className={Styles.container}>
+            {info}
+
+            {
+                visRes && parsed!=undefined && parsed!=null && parsed.summary && (
+                    <div className={Styles.section}>
+                        <h1 className={Styles.nodeTitle} style={{backgroundColor:"var(--background)"}}>Loaded Model:</h1>
+                        <div className={"flex gap-[1rem] align-middle items-center"}>
+                            <h2>File:</h2>{parsed.summary.filename}
+                        </div>
+                        <div className={"flex gap-[1rem] align-middle items-center"}>
+                            <h2>Producer:</h2>{parsed.summary.producer}
+                        </div>
+                        <h2>Inputs:</h2>
+                        <ul>
+                            {parsed.summary.inputs.map((input:{a:string, name:string}, i:number)=>(
+                                <li key={i}>{input.name}</li>
+                            ))}
+                        </ul>
+                        <h2>Outputs:</h2>
+                        <ul>
+                            {parsed.summary.outputs.map((output:{a:string,name:string}, i:number)=>(
+                                <li key={i}>{output.name}</li>
+                            ))}
+                        </ul>
+                        <div className={"flex gap-[1rem] align-middle items-center"}>
+                        <h2>Node count:</h2> {parsed.summary.node_count}
+                        </div>
+                    </div>
+                )
+            }
+
     </div>
 }
