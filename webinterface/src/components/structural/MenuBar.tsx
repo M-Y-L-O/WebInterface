@@ -1,8 +1,10 @@
 "use client"
 import React from 'react';
-import {useDockviewStore, useVisualisationStore} from "@/lib/store";
-import {useClientStore} from "@/lib/store";
+import {useRouter} from "next/navigation";
+import {useClientStore, useDockviewStore, useVisualisationStore} from "@/lib/store";
+import {LoadModel, LoadCSV, SaveProject, OpenProject} from "@/lib/windows/Actions";
 import Style from "./MenuBar.module.css"
+
 
 interface ActionButton{
     label:string,
@@ -13,24 +15,12 @@ interface ActionButton{
 
 export default function MenuBar(){
     const client = useClientStore(state => state.client);
-    const setVis =         useVisualisationStore(state => state.setVisualisation)
+    const setVis = useVisualisationStore(state => state.setVisualisation)
+
+    const router = useRouter();
+
     const [hoveredIndex, setHoveredIndex] = React.useState<number | null>(null);
 
-    async function LoadModel(){
-        if(!client)
-            return;
-        console.log("Loading model");
-        const res = await client.LoadModel();
-        setVis(JSON.stringify(res));
-        sessionStorage.setItem("model", JSON.stringify(res));
-    }
-
-    async function LoadCSV(){
-        if(!client)
-            return;
-        const res = await client.LoadCSV();
-        console.log(res);
-    }
 
     const api = useDockviewStore.getState().api;
     function addWindow(window:string){
@@ -52,11 +42,15 @@ export default function MenuBar(){
             children:[
                 {
                     label:"Import Model",
-                    onClick:()=>LoadModel()
+                    onClick:()=>LoadModel(client, setVis)
                 },
                 {
                     label:"Import CSV",
-                    onClick:()=>LoadCSV()
+                    onClick:()=>LoadCSV(client)
+                },
+                {
+                    label:"Save Project",
+                    onClick:()=>SaveProject(client)
                 }
             ]
         },
@@ -76,7 +70,7 @@ export default function MenuBar(){
 
     return (
         <nav className={Style.container}>
-            <button className={Style.homeButton}>
+            <button className={Style.homeButton} onClick={()=>{router.push("/home")}}>
                 <img src={"/logo.svg"}/>
             </button>
             <div className={Style.menuHolder}>

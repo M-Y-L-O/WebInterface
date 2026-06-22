@@ -1,0 +1,170 @@
+
+
+.section{
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    flex-wrap: wrap;
+    padding: 1rem 0;
+}
+
+.section .title{
+    font-size: 2rem;
+    font-weight: bold;
+    padding: 1rem 0;
+    margin-left: 1rem;
+}
+
+.section .list{
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+    background-color: var(--card-background);
+    padding: 1rem;
+}
+
+.section .option{
+    padding: 1rem;
+    border: 2px solid var(--light-highlight);
+    background-color: var(--card-background);
+    border-radius: 0.5rem;
+    width: 20rem;
+    height: 10rem;
+
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    transition: 0.2s ease-in-out;
+}
+
+.section .option:hover{
+    border: 2px solid var(--primary);
+    cursor: pointer;
+}
+
+.section .option h1{
+    font-size: 1.5rem;
+    padding: 0.5rem 0;
+    font-weight: bold;
+}
+
+.option.active{
+    background-color: var(--primary);
+    color: var(--card-background);
+    border: 2px solid var(--card-background);
+}
+
+.option.active h2{
+    color: var(--card-background);
+}
+
+.option h2{
+    color: var(--text-light);
+}
+
+.option .editButton{
+    height: 3rem;
+    width: 3rem;
+    border-radius: 0.5rem;
+    background-color: var(--background);
+    color: #fff;
+    transition: 0.2s ease-in-out;
+}
+
+.option .editButton:hover{
+    background-color: #fff;
+    color: var(--background);
+}
+
+.option .deleteButton{
+    height: 3rem;
+    width: 3rem;
+    padding: 0.5rem 1rem;
+    border-radius: 0.5rem;
+    background-color: var(--error);
+    color: #fff;
+    transition: 0.2s ease-in-out;
+}
+
+.option .deleteButton:hover{
+    background-color: #fff;
+    color: var(--error);
+}
+
+.createButton{
+    padding: 0.5rem 1rem;
+    border-radius: 0.5rem;
+    background-color: var(--primary);
+    border: 2px solid var(--primary);
+    color: var(--card-background);
+
+    transition: 0.2s ease-in-out;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    height: 10rem;
+    width: 10rem;
+
+}
+
+.createButton i{
+    font-size: 4rem;
+}
+
+.createButton:hover{
+    background-color: var(--card-background);
+    color: var(--primary);
+    cursor: pointer;
+}
+
+.overlay{
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 1rem;
+    padding: 1rem;
+
+    height: 100%;
+    width: 100%;
+
+    position: absolute;
+    z-index: 100;
+    top:0;
+    left:0;
+    backdrop-filter: blur(5px);
+}
+
+.form{
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    background-color: var(--card-background);
+    padding: 1rem;
+    border-radius: 0.5rem;
+}
+
+.form input, .form select{
+    padding: 0.5rem;
+    border-radius: 0.5rem;
+    border: 1px solid var(--light-highlight);
+    outline: none;
+}
+
+.form option{
+    background-color: var(--background);
+    border-radius: 0.5rem;
+    border: none;
+    outline: none;
+}
+
+.form h1{
+    font-size: 2rem;
+    font-weight: bold;
+}
+
+.form .mainButton{
+    background-color: var(--primary);
+    padding: 0.5rem 1rem;
+    border-radius: 0.5rem;
+}

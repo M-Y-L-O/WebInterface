@@ -8,7 +8,7 @@ import { users, accounts, sessions, verificationTokens } from "@/db/schemas/next
 const handler = NextAuth({
     providers: [
         Google({
-            clientId: process.env.GOOGLE_CLIENT_ID!,
+            clientId: process.env.GOOGLE_ID!,
             clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
         }),
         Github({
@@ -22,6 +22,19 @@ const handler = NextAuth({
         sessionsTable: sessions,
         verificationTokensTable: verificationTokens,
     }),
+    session: {
+        strategy: "jwt",
+    },
+    callbacks:{
+        session({session, token}){
+            // @ts-ignore
+            session.user!.id = token.sub!;
+            return session;
+        }
+    },
+    pages:{
+        signIn: "/auth",
+    }
 });
 
 export { handler as GET, handler as POST };

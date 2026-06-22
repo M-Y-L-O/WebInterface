@@ -19,11 +19,14 @@ export default function Visualiser(props: IDockviewPanelProps){
     const [_parsed, setParsed] = useState<any>(null);
 
     const buildGraph = useCallback(async () => {
-        if (!visRes) {
+        const res = sessionStorage.getItem("visRes");
+        if(res)
+            setVis(res);
+        else
             return;
-        }
 
-        const parsed = JSON.parse(visRes);
+
+        const parsed = JSON.parse(res);
         setParsed(parsed);
 
         let rawNodes: GraphNode[] = parsed.nodes || [];
@@ -98,7 +101,7 @@ export default function Visualiser(props: IDockviewPanelProps){
     useEffect(()=>{
         if(!visRes)
         {
-            const model = sessionStorage.getItem("model");
+            const model = sessionStorage.getItem("visRes ");
             if(model){
                 setVis(model);
             }

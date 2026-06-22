@@ -134,14 +134,12 @@ export default function Properties() {
     const selected = useSelectedStore(state => state.selected);
     const [info, setInfo] = useState<ReactNode>(null);
     const visRes = useVisualisationStore(state => state.visualisation);
-    console.log(visRes);
     let parsed = (visRes === null || typeof visRes === 'undefined' || visRes === 'undefined')
         ? null
         : JSON.parse(visRes);
 
 
     useEffect(() => {
-        console.log(selected);
         if(!selected)
             return;
         if('title' in selected)

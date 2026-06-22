@@ -12,6 +12,8 @@
   --text-light: #6b7280;
   --card-background: #171717;
   --light-highlight:#757575;
+
+  --error: #da3939;
 }
 
 body {

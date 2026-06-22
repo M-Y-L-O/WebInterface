@@ -9,3 +9,6 @@ export async function logout(){
     await signOut({})
 }
 
+export function getUUID():string{
+    return crypto.randomUUID()
+}

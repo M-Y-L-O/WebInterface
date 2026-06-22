@@ -7,13 +7,11 @@ export enum ClientType {
 
 export interface ClientConfig {
     type: ClientType;
-    localId?: number;
     name: string;
-    address?: string;
-    port?: number;
-    workPath?: string;
+    address: string;
     cloudEndpoint?: string; // For cloud, provide the managed API endpoint
     apiKey: string;
+    dbId?:string;
 }
 
 export interface OptimizationTask {
@@ -49,6 +47,10 @@ export enum EndPoints{
     optimize = "/optimize",
     optimizeStatus = "/optimize-status",
     downloadOptimized = "/download-optimized",
+    newProject = "/newProject",
+    exportProject="/exportProject",
+    getProject = "/getProject",
+    loadProject = "/loadProject",
     uploadModel = "/Loadmodel",
     uploadCSV = "/upload-csv",
     referenceModel = "/loadModel",
