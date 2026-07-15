@@ -1,9 +1,10 @@
 "use client"
 import React from 'react';
 import {useRouter} from "next/navigation";
-import {useClientStore, useDockviewStore, useVisualisationStore} from "@/lib/store";
+import {useClientStore, useDockviewStore} from "@/lib/store";
 import {LoadModel, LoadCSV, SaveProject, OpenProject} from "@/lib/windows/Actions";
 import Style from "./MenuBar.module.css"
+import {AnimatePresence, motion} from "framer-motion";
 
 
 interface ActionButton{
@@ -15,7 +16,6 @@ interface ActionButton{
 
 export default function MenuBar(){
     const client = useClientStore(state => state.client);
-    const setVis = useVisualisationStore(state => state.setVisualisation)
 
     const router = useRouter();
 
@@ -23,26 +23,30 @@ export default function MenuBar(){
 
 
     const api = useDockviewStore.getState().api;
-    function addWindow(window:string){
-        if(api){
+    function openPanel(component:string, id:string, title:string, params?:Record<string, unknown>){
+        if(!api)
+            return;
 
-            const existing = api.getPanel(window);
-            if(existing){
-                existing.api.setActive();
-                return;
-            }
-
-            api.addPanel({id: window, component: window, title: window})
+        const existing = api.getPanel(id);
+        if(existing){
+            existing.api.setActive();
+            return;
         }
+
+        api.addPanel({id, component, title, params} as any);
+    }
+
+    function addWindow(window:string, title?:string){
+        openPanel(window, window, title || window)
     }
 
     const MenuButtons:ActionButton[] = [
         {
-            label:"File",
+            label:"Project",
             children:[
                 {
                     label:"Import Model",
-                    onClick:()=>LoadModel(client, setVis)
+                    onClick:()=>LoadModel(client)
                 },
                 {
                     label:"Import CSV",
@@ -51,52 +55,108 @@ export default function MenuBar(){
                 {
                     label:"Save Project",
                     onClick:()=>SaveProject(client)
+                },
+                {
+                    label:"Open Project",
+                    onClick:()=>OpenProject(client)
                 }
             ]
         },
         {
-            label:"Visualizer",
-            onClick:()=>addWindow("Visualiser")
+            label:"Model",
+            children:[
+                {
+                    label:"File Explorer",
+                    onClick:()=>addWindow("FileExplorer", "File Explorer")
+                },
+                {
+                    label:"Optimize",
+                    onClick:()=>addWindow("Optimization", "Optimization")
+                }
+            ]
         },
         {
-            label:"Properties",
-            onClick:()=>addWindow("Properties")
+            label:"Data",
+            children:[
+                {
+                    label:"Dataset Info",
+                    onClick:()=>addWindow("DataInfo")
+                },
+                {
+                    label:"Data viewer",
+                    onClick:()=>addWindow("DataViewer")
+                }
+            ]
         },
         {
-            label:"Settings",
-            onClick:()=>addWindow("Settings")
-        },
+            label:"Other",
+            children:[{
+                label:"Properties",
+                onClick:()=>addWindow("Properties")
+                },
+                {
+                label:"Settings",
+                onClick:()=>addWindow("Settings")
+            }]
+        }
     ]
+
+    const dropdownVariants = {
+        hidden: { opacity: 0, y: -10, scale: 0.95 },
+        visible: { opacity: 1, y: 0, scale: 1 },
+        exit: { opacity: 0, y: -10, scale: 0.95 },
+    }
 
     return (
         <nav className={Style.container}>
             <button className={Style.homeButton} onClick={()=>{router.push("/home")}}>
                 <img src={"/logo.svg"}/>
             </button>
-            <div className={Style.menuHolder}>
-            {
-                MenuButtons.map((button, index)=>{
-                    const hasChildren = !!button.children?.length;
-                    return(
-                        <div key={index} onMouseEnter={()=>{setHoveredIndex(index)}} onMouseLeave={()=>{setHoveredIndex(null)}} className={Style.menuItem}>
-                            <button onClick={button.onClick} >{button.label}</button>
-                            {   hasChildren &&
-                                <div className={Style.dropdown}>
+                <motion.div className={Style.menuHolder} initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}} transition={{duration:0.2}} onMouseEnter={()=>{setHoveredIndex(null)}}>
+                {
+                    MenuButtons.map((button, index)=>{
+                        const hasChildren = !!button.children?.length;
+                        const isOpen = hoveredIndex === index;
+                        return(
+                            <div key={index} onMouseEnter={()=>{setHoveredIndex(index)}} onMouseLeave={()=>{setHoveredIndex(null)}} className={Style.menuItem}>
+                                <button onClick={button.onClick} className={"relative"}>
+                                    <span className={"relative z-10"} style={{zIndex:10}}>{button.label}</span>
                                     {
-                                        hoveredIndex === index &&
-                                        button.children?.map((child, i)=>{
-                                            return(
-                                                <button key={i} onClick={child.onClick}>{child.label}</button>
-                                            )
-                                        })
+                                        isOpen && (
+                                            <motion.div
+                                                layoutId={"hoverHighlight"}
+                                                transition={{
+                                                    type:"spring",
+                                                    stiffness: 300,
+                                                    damping: 30,
+                                                    duration: 0.15,
+                                                }}
+                                                exit={{opacity:0}}
+                                            className={Style.pill}>
+
+                                            </motion.div>
+                                        )
                                     }
-                                </div>
-                            }
-                        </div>
-                    )
-                })
-            }
-            </div>
+                                </button>
+                                <AnimatePresence >
+                                    {   hasChildren && isOpen &&
+                                        <motion.div className={Style.dropdown} variants={dropdownVariants} initial="hidden" animate="visible" exit="exit">
+                                            {
+                                                hoveredIndex === index &&
+                                                button.children?.map((child, i)=>{
+                                                    return(
+                                                        <button key={i} onClick={child.onClick}>{child.label}</button>
+                                                    )
+                                                })
+                                            }
+                                        </motion.div>
+                                    }
+                                </AnimatePresence>
+                            </div>
+                        )
+                    })
+                }
+                </motion.div>
         </nav>
     )
 }

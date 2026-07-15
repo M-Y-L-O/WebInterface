@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import {persist, createJSONStorage} from "zustand/middleware";
 import type { DockviewApi } from "dockview-core";
 import {ClientConfig} from "@/lib/client/ClientTypes";
 import {Client} from "@/lib/client/Client";
@@ -6,12 +7,14 @@ import {Client} from "@/lib/client/Client";
 type DockviewState = {
     api: DockviewApi | null;
     setApi: (api: DockviewApi) => void;
+    clearApi: () => void;
 };
 
 export const useDockviewStore = create<DockviewState>((set) => ({
     api: null,
 
     setApi: (api) => set({ api }),
+    clearApi: () => set({ api: null }),
 }));
 
 interface ClientStore{
@@ -33,29 +36,37 @@ export const useDockviewLayoutStore = create<DockviewLayoutState>((set)=>({
     setLayout:(layout)=>set({layout}),
 }))
 
-export const useClientStore = create<ClientStore>((set)=>({
+export const useClientStore = create<ClientStore>((set, get)=>({
+
     config:null,
     client:null,
 
-    setConfig:(config)=>set({
-        config,
-        client: new Client(config),
-    }),
+    setConfig:(config)=>{
+        set({
+            config,
+            client: new Client(config),
+        });
+    },
 
-    clearClient: ()=>set({
-        config:null,
-        client:null,
-    })
+    clearClient: ()=>{
+        set({
+            config:null,
+            client: null,
+        });
+    }
+
 }))
 
 interface VisualisationResultStore{
     visualisation:string|null;
     setVisualisation:(visualisation:string)=>void;
+    clearVisualisation:()=>void;
 }
 
 export const useVisualisationStore = create<VisualisationResultStore>((set)=>({
     visualisation:null,
-    setVisualisation:(visualisation)=>set({visualisation})
+    setVisualisation:(visualisation)=>set({visualisation}),
+    clearVisualisation:()=>set({visualisation:null})
 }))
 
 export interface Session{
@@ -80,6 +91,7 @@ export const useUserSessionStore = create<UserSessionStore>((set)=>({
 interface SelectedStore{
     selected:any|null;
     setSelected:(selected:any)=>void;
+    clearSelected:()=>void;
 }
 
-export const useSelectedStore = create<SelectedStore>((set)=>({selected:null, setSelected:(selected)=>set({selected})}))
+export const useSelectedStore = create<SelectedStore>((set)=>({selected:null, setSelected:(selected)=>set({selected}), clearSelected:()=>set({selected:null})}))

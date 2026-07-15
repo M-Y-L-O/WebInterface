@@ -45,7 +45,7 @@
     padding: 0.5rem 1rem;
     height: 100%;
     width: 100%;
-
+    position: relative;
 }
 
 .menuItem:hover .dropdown{
@@ -75,8 +75,11 @@
     color: #ededed;
 }
 
-.menuItem:hover{
+.pill{
+    position: absolute;
+    inset: 0;
     background-color: #1E1E1E;
+    z-index: 1;
 }
 
 .dropdown button{

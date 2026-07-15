@@ -14,9 +14,17 @@ export interface ClientConfig {
     dbId?:string;
 }
 
+export interface OptimizationRequest {
+    inputFeatures: string[];
+    targetFeature: string;
+    problemType:string;
+    epochs: number;
+    strategy: string | 'neat' | 'genetic' | 'brute-force'|'neuroevolution';
+    encoding: string | 'none'| 'label' | 'onehot';
+    generations?: number;
+}
+
 export interface OptimizationTask {
-    modelPath: string;
-    csvPath: string;
     inputFeatures: string[];
     targetFeature: string;
     maxEpochs: number;
@@ -44,8 +52,10 @@ export interface ProgressUpdate {
 export enum EndPoints{
     health = "/",
     initialize = "/initialize",
-    optimize = "/optimize",
-    optimizeStatus = "/optimize-status",
+    optimize = "/optimizeModel",
+    optimizeStatus = "/optimizationStatus",
+    projectFiles = "/projectFiles",
+    visualizeProjectFile = "/visualizeProjectFile",
     downloadOptimized = "/download-optimized",
     newProject = "/newProject",
     exportProject="/exportProject",
@@ -55,6 +65,16 @@ export enum EndPoints{
     uploadCSV = "/upload-csv",
     referenceModel = "/loadModel",
     referenceCSV = "/loadCSV",
+
+    // Model editor (descriptor-driven)
+    getModelDescriptor = "/getModelDescriptor",
+    validateModelDescriptor = "/validateModelDescriptor",
+    editModel = "/editModel",
+    saveModelDescriptor = "/saveModelDescriptor",
+    visualizeModel = "/visualizeModel",
+    expandModelNodes = "/expandModelNodes",
+    collapseModelNodes = "/collapseModelNodes",
+    getModelEditorCatalog = "/getModelEditorCatalog",
 
 }
 

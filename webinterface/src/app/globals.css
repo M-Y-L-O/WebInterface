@@ -14,10 +14,12 @@
   --light-highlight:#757575;
 
   --error: #da3939;
+  --success: #22c55e;
+  --warning: #f59e0b;
 }
 
 body {
   background: var(--background);
   color: var(--text);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-josefin-sans);
 }

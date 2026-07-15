@@ -1,3 +1,5 @@
-export { default } from "next-auth/middleware"
+import nextAuthMiddleware from "next-auth/middleware"
+
+export default nextAuthMiddleware
 
 export const config = { matcher: ["/dashboard", "/home"] }

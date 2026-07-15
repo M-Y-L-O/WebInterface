@@ -16,6 +16,7 @@ export async function Request(target: EndPoints, config:ClientConfig, data?:any 
         },
         body: JSON.stringify(data)
     }
+    console.log(JSON.stringify(data))
     try{
         const res = await fetch(config.address+target, request);
         if(!res.ok)
@@ -45,9 +46,12 @@ export async function timedRequest(target: EndPoints, config:ClientConfig, timeo
         const data = await res.json();
         return data;
     } catch (e) {
+        // @ts-ignore
         if(e.name === "AbortError")
             return {Status: "Timed out"};
         return new Error("Request failed:", {cause: e})
+    } finally {
+        clearTimeout(id);
     }
 }
 
@@ -94,6 +98,23 @@ export async function RequestForFile(target: EndPoints, config: ClientConfig, da
         return await res.blob();
     } catch (e) {
         console.log(e);
+        return new Error("Request failed:", {cause: e})
+    }
+}
+export async function GetRequest(target: EndPoints, config:ClientConfig, data?:any ):Promise<any>{
+    const request = {
+        method: "GET",
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': "Bearer " + await hash(config.apiKey!)
+        },
+        body: JSON.stringify(data)
+    }
+    try{
+        const res = await fetch(config.address+target, request);
+        return res;
+    }
+    catch(e){
         return new Error("Request failed:", {cause: e})
     }
 }

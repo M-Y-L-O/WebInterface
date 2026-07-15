@@ -1,16 +1,18 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Bakbak_One, Josefin_Sans } from "next/font/google";
 import '@/lib/fontawesome/css/fa.css';
 import "./globals.css";
 import {Toaster} from 'sonner';
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+
+const joseSans = Josefin_Sans({
+  variable: "--font-josefin-sans",
   subsets: ["latin"],
 });
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
+const bakbakOne = Bakbak_One({
+  variable: "--font-bakbak",
   subsets: ["latin"],
+  weight: "400",
 });
 
 export const metadata: Metadata = {
@@ -26,11 +28,11 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      className={`${joseSans.variable} ${bakbakOne.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">
+      <Toaster theme={"dark"}/>
           {children}
-          <Toaster richColors theme={"dark"}/>
       </body>
     </html>
   );

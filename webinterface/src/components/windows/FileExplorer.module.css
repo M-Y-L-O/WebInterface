@@ -1,0 +1,53 @@
+.container{
+    display: flex;
+    gap:1rem;
+    flex-wrap: wrap;
+    padding: 1rem;
+}
+
+
+
+.section{
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    padding: 1rem;
+    overflow-y: auto;
+    overflow-x: hidden;
+    height: 100%;
+    min-height: 19rem;
+    background-color: var(--card-background);
+    border-radius: 0.5rem;
+    width: 100%;
+    min-width: 30rem;
+}
+
+.slot{
+    display: flex;
+    flex-direction: column;
+    background-color: var(--background);
+    border-radius: 0.5rem;
+    transition: 0.2s ease-in-out;
+}
+
+.menuButton{
+    padding: 0.5rem 1rem;
+    border-radius: 0.5rem;
+    background-color: var(--card-background);
+    color: var(--text);
+    transition: 0.2s ease-in-out;
+    display: flex;
+    gap: 0.5rem;
+    justify-content: center;
+    align-items: center;
+}
+
+.menuButton:hover{
+    background-color: var(--primary);
+    color: var(--card-background);
+    cursor: pointer;
+}
+
+.menuButton:active{
+    background-color: var(--primary-hover);
+}

@@ -1,0 +1,81 @@
+.container{
+    padding: 1rem 0.2rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    height: 100%;
+    width: 100%;
+    overflow-y: auto;
+    overflow-x: hidden;
+}
+
+.container h1{
+    font-size: 1.5rem;
+    font-weight: bold;
+    margin-left: 0.6rem;
+}
+
+.container h2{
+    font-weight: bold;
+}
+
+.section ul{
+    list-style-position: inside;
+    padding-left: 1rem;
+    max-height: 20rem;
+    overflow-y: auto;
+}
+.section li{
+    display: flex;
+    gap:0.5rem;
+}
+
+.section li input{
+    accent-color: var(--primary);
+}
+
+.section{
+    display: flex;
+    gap:0.2rem;
+    flex-direction: column;
+    background-color: var(--card-background);
+    padding: 1rem;
+    border-radius: 0.5rem;
+}
+
+.active{
+    background-color: var(--primary);
+    padding: 0.8rem 2rem;
+    border-radius: 5rem;
+    z-index: 1;
+    position: absolute;
+    inset: 0;
+}
+
+.optionButton{
+    padding: 0.8rem 1rem;
+    width: 100%;
+    border-radius: 5rem;
+    transition: 0.2s ease-in-out;
+    cursor: pointer;
+    position: relative;
+}
+
+.startButton{
+    background-color: var(--primary);
+    color: var(--card-background);
+
+    padding: 0.8rem 2rem;
+    border-radius: 5rem;
+    transition: 0.2s ease-in-out;
+    cursor: pointer;
+    margin: 0rem 2rem;
+}
+
+.startButton:hover{
+    transform: scale(1.05);
+}
+
+.startButton:active{
+    transform: scale(0.95);
+}

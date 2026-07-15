@@ -4,6 +4,15 @@ import {config} from "dotenv";
 
 config();
 
-const pool = new Pool({connectionString: process.env.DATABASE_URL});
+declare global {
+	// eslint-disable-next-line no-var
+	var __myloPool: Pool | undefined;
+}
+
+const pool = globalThis.__myloPool ?? new Pool({ connectionString: process.env.DATABASE_URL });
+
+if (process.env.NODE_ENV !== "production") {
+	globalThis.__myloPool = pool;
+}
 
 export const db = drizzle(pool);

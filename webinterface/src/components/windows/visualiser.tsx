@@ -1,8 +1,8 @@
 "use client"
 import {IDockviewPanelProps} from "dockview-core";
-import {useEffect, useRef, useCallback, useMemo, useState} from "react";
+import {useEffect, useMemo, useState} from "react";
 
-import {ReactFlow, Background, Controls, MiniMap, Node, Edge, OnSelectionChangeParams, Position, useNodesState, useEdgesState} from "@xyflow/react";
+import {ReactFlow, Background, Controls, MiniMap, Node, Edge, OnSelectionChangeParams, useNodesState, useEdgesState} from "@xyflow/react";
 import '@xyflow/react/dist/style.css';
 
 import {useSelectedStore, useVisualisationStore} from "@/lib/store";
@@ -10,112 +10,39 @@ import {GraphEdge, GraphNode, colorNode, nodeDefaults, simplifyNodeName, getNode
 
 
 export default function Visualiser(props: IDockviewPanelProps){
-    const visRes = useVisualisationStore(state => state.visualisation);
     const setVis = useVisualisationStore(state => state.setVisualisation);
     const setSelected = useSelectedStore(state => state.setSelected);
 
     const [nodes, setNodes, onNodesChange] = useNodesState([]);
     const [edges, setEdges, onEdgeChange] = useEdgesState([]);
-    const [_parsed, setParsed] = useState<any>(null);
+    const [parsed, setParsed] = useState<any>(null);
 
-    const buildGraph = useCallback(async () => {
-        const res = sessionStorage.getItem("visRes");
-        if(res)
-            setVis(res);
-        else
-            return;
+    const panelParams = (props as any).params || {};
+    const providedVisualisation = panelParams.visualisation || panelParams.modelData || panelParams.data;
 
-
-        const parsed = JSON.parse(res);
-        setParsed(parsed);
-
-        let rawNodes: GraphNode[] = parsed.nodes || [];
-        let rawEdges: GraphEdge[] = parsed.edges || [];
-
-        const constantsToRemove = new Set<string|number>();
-        const cleanNodes: GraphNode[] = [];
-
-        //filter out constant nodes
-        rawNodes.forEach((node) => {
-            if (node.label.includes("Constant")) {
-                constantsToRemove.add(node.id);
-            } else {
-                cleanNodes.push(node);
-            }
-        })
-
-        //remove edges to and from constants
-        let newEdges: GraphEdge[] = [];
-
-        rawEdges.forEach((edge) => {
-            if(constantsToRemove.has(edge.from)){
-                newEdges.push(...rawEdges.filter((e)=>e.to === edge.from).map(e=>({
-                    from: e.from,
-                    to: edge.to
-                })));
-            } else if(constantsToRemove.has(edge.to)){
-                newEdges.push(...rawEdges.filter((e)=>e.from === edge.to).map(e=>({
-                    from: edge.from,
-                    to: e.to
-                })));
-            } else {
-                newEdges.push(edge);
-            }
-        })
-
-        //Clean node dupes
-        const seen = new Set<string>();
-        newEdges = newEdges.filter((edge)=>{
-            const key= `${edge.from}-${edge.to}`;
-            if(seen.has(key))
-                return false;
-            seen.add(key);
-            return true;
-        })
-
-        let rfNodes: Node[] = cleanNodes.map((node)=>({
-            id: String(node.id),
-            data: {label: simplifyNodeName(node) || node.label},
-            position: {x:0, y:0},
-
-            ...nodeDefaults
-        }))
-
-        let rfEdges: Edge[] = newEdges.map((edge, i)=>({
-            id: String(i),
-            source: String(edge.from),
-            target: String(edge.to),
-            animated:true
-        }))
-
-        rfNodes = rfNodes.map((node)=> colorNode(node))
-
-        const positionedNodes = await layoutElements(rfNodes, rfEdges, false);
-
-        // @ts-ignore
-        setNodes(positionedNodes);
-        // @ts-ignore
-        setEdges(rfEdges);
-    }, [visRes])
-
-    useEffect(()=>{
-        if(!visRes)
-        {
-            const model = sessionStorage.getItem("visRes ");
-            if(model){
-                setVis(model);
+    const sourceVisualisation = useMemo(() => {
+        if (providedVisualisation) {
+            if (typeof providedVisualisation === "string") {
+                try {
+                    return JSON.parse(providedVisualisation);
+                } catch {
+                    return null;
+                }
             }
 
+            return providedVisualisation;
         }
-    },[])
+
+        return null;
+    }, [providedVisualisation]);
 
     function onSelectionChange(params: OnSelectionChangeParams) {
 
-        if(params.nodes.length > 0){
-            const node = _parsed.nodes.find((n:GraphNode)=> n.id.toString() === params.nodes[0].id);
+        if(params.nodes.length > 0 && parsed){
+            const node = parsed.nodes.find((n:GraphNode)=> n.id.toString() === params.nodes[0].id);
             setSelected(node);
-        } else if(params.edges.length > 0){
-            const edge = _parsed.edges.find((e:GraphEdge) => e.from.toString() === params.edges[0].source && e.to.toString() === params.edges[0].target);
+        } else if(params.edges.length > 0 && parsed){
+            const edge = parsed.edges.find((e:GraphEdge) => e.from.toString() === params.edges[0].source && e.to.toString() === params.edges[0].target);
             setSelected(edge);
         } else {
             setSelected(null);
@@ -124,8 +51,107 @@ export default function Visualiser(props: IDockviewPanelProps){
     }
 
     useEffect(()=>{
-        buildGraph();
-    }, [buildGraph])
+        let cancelled = false;
+
+        async function buildGraph(parsedGraph:any) {
+            if (!parsedGraph) {
+                setParsed(null);
+                setNodes([]);
+                setEdges([]);
+                return;
+            }
+
+            let rawNodes: GraphNode[] = parsedGraph.nodes || [];
+            let rawEdges: GraphEdge[] = parsedGraph.edges || [];
+
+            const constantsToRemove = new Set<string|number>();
+            const cleanNodes: GraphNode[] = [];
+
+            rawNodes.forEach((node) => {
+                if (node.label.includes("Constant")) {
+                    constantsToRemove.add(node.id);
+                } else {
+                    cleanNodes.push(node);
+                }
+            })
+
+            let newEdges: GraphEdge[] = [];
+
+            rawEdges.forEach((edge) => {
+                if(constantsToRemove.has(edge.from)){
+                    newEdges.push(...rawEdges.filter((e)=>e.to === edge.from).map(e=>({
+                        from: e.from,
+                        to: edge.to
+                    })));
+                } else if(constantsToRemove.has(edge.to)){
+                    newEdges.push(...rawEdges.filter((e)=>e.from === edge.to).map(e=>({
+                        from: edge.from,
+                        to: e.to
+                    })));
+                } else {
+                    newEdges.push(edge);
+                }
+            })
+
+            const seen = new Set<string>();
+            newEdges = newEdges.filter((edge)=>{
+                const key= `${edge.from}-${edge.to}`;
+                if(seen.has(key))
+                    return false;
+                seen.add(key);
+                return true;
+            })
+
+            let rfNodes: Node[] = cleanNodes.map((node)=>({
+                id: String(node.id),
+                data: {label: simplifyNodeName(node) || node.label},
+                position: {x:0, y:0},
+
+                ...nodeDefaults
+            }))
+
+            const rfEdges: Edge[] = newEdges.map((edge, i)=>({
+                id: String(i),
+                source: String(edge.from),
+                target: String(edge.to),
+                animated:true
+            }))
+
+            rfNodes = rfNodes.map((node)=> colorNode(node))
+
+            const positionedNodes = await layoutElements(rfNodes, rfEdges, false);
+
+            if (cancelled) {
+                return;
+            }
+
+            // @ts-ignore
+            setNodes(positionedNodes);
+            // @ts-ignore
+            setEdges(rfEdges);
+        }
+
+        async function loadVisualisation() {
+            if (sourceVisualisation) {
+                const serialized = JSON.stringify(sourceVisualisation);
+                setVis(serialized);
+                setParsed(sourceVisualisation);
+                await buildGraph(sourceVisualisation);
+                return;
+            }
+
+            setParsed(null);
+            setNodes([]);
+            setEdges([]);
+        }
+
+        loadVisualisation();
+
+        return () => {
+            cancelled = true;
+        };
+    }, [sourceVisualisation, setEdges, setNodes, setVis]);
+
     return <div className={"w-full h-full"}>
         <ReactFlow nodes={nodes} edges={edges} onNodesChange={onNodesChange} onEdgesChange={onEdgeChange} onSelectionChange={onSelectionChange} fitView colorMode={"dark"}>
             <Background/>
