@@ -3,6 +3,8 @@
     gap:1rem;
     flex-wrap: wrap;
     padding: 1rem;
+    overflow-y: auto;
+    background-color: var(--card-background);
 }
 
 

@@ -1,6 +1,7 @@
 "use client"
 import {toast} from 'sonner'
 import {Client} from "@/lib/client/Client";
+import {useProjectStore} from "@/lib/store";
 
 export async function LoadModel(client:Client|null, openVisualizer?: (result:any, fileName?:string)=>void){
 
@@ -19,7 +20,7 @@ export async function LoadModel(client:Client|null, openVisualizer?: (result:any
         if(!res || res==="undefined" || res === "null" || res===undefined || res.message === "Request failed:")
             throw new Error("Failed to load model: Invalid response" + res)
 
-        sessionStorage.setItem("visRes", JSON.stringify(res));
+        useProjectStore.getState().setVisualisation(res);
         openVisualizer?.(res, file.name);
         toast.success("Model loaded", {id: toastId, duration: 5000});
     } catch (e) {
@@ -44,8 +45,7 @@ export async function LoadCSV(client:Client|null){
         if(!res || res==="undefined" || res === "null" || res===undefined || res.message === "Request failed:")
             throw new Error("Failed to load CSV: Invalid response")
 
-        sessionStorage.setItem("csv", JSON.stringify(res));
-        console.log(res);
+        useProjectStore.getState().setCsv(res);
         toast.success("CSV loaded", {id: toastId, duration: 5000});
     } catch (e) {
         // @ts-ignore
@@ -81,21 +81,9 @@ export async function OpenProject(client:Client|null){
     }
 
     const activeProject = await client.getProject();
-
-    sessionStorage.removeItem("loadedProject");
-    sessionStorage.removeItem("visRes");
-    sessionStorage.removeItem("csv");
-
-
-    sessionStorage.setItem("loadedProject", JSON.stringify(activeProject));
-    if(activeProject.modelData)
-        sessionStorage.setItem("visRes", JSON.stringify(activeProject.modelData));
-    console.log(activeProject);
-    if(activeProject.csvData)
-        sessionStorage.setItem("csv", JSON.stringify(activeProject.csvData));
+    useProjectStore.getState().hydrateFromProject(activeProject);
 
     toast.success("Project opened", {duration: 5000});
     return 200;
 
 }
-

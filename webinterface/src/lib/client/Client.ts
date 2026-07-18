@@ -4,6 +4,8 @@ import {FileRequest, GetRequest, Request, RequestForFile, timedRequest} from "@/
 import {RequestServer} from "@/lib/client/CloudTunnel";
 import crypto from "crypto";
 import {getUUID} from "@/lib/auth";
+import type { ConnectionResult } from "@/lib/store/types";
+import { useProjectStore } from "@/lib/store/projectStore";
 
 export class Client {
 
@@ -14,25 +16,44 @@ export class Client {
         this.config = config;
     }
 
-    public async TestConnection():Promise<any>{
-
-        if(this.config.type === "LOCAL")
-            try{
+    public async TestConnection(): Promise<ConnectionResult> {
+        if (this.config.type === "LOCAL") {
+            try {
                 const res = await timedRequest(EndPoints.health, this.config, 1000);
-                if(res.message === "Request failed:")
-                    return 500;
-                return res;
-            } catch (e){
-                return 500;
+                if (res instanceof Error || res?.message === "Request failed:") {
+                    return {
+                        ok: false,
+                        status: "error",
+                        error: res instanceof Error ? res.message : "Request failed",
+                        raw: res,
+                    };
+                }
+                if (res?.Status === "Timed out") {
+                    return { ok: false, status: "timed_out", raw: res };
+                }
+                if (res?.Status === true) {
+                    return { ok: true, status: "connected", raw: res };
+                }
+                return { ok: false, status: "needs_init", raw: res };
+            } catch (error) {
+                return {
+                    ok: false,
+                    status: "error",
+                    error: error instanceof Error ? error.message : "Connection failed",
+                };
             }
-        else
-            try{
-                await RequestServer(EndPoints.health, this.config);
-                return 200;
-            } catch (e){
-                return 500;
-            }
+        }
 
+        try {
+            await RequestServer(EndPoints.health, this.config);
+            return { ok: true, status: "connected" };
+        } catch (error) {
+            return {
+                ok: false,
+                status: "error",
+                error: error instanceof Error ? error.message : "Connection failed",
+            };
+        }
     }
 
     public async Initialize():Promise<number|any>{
@@ -73,6 +94,23 @@ export class Client {
         }
     }
 
+    public async getOptimizationReport(){
+        if(this.config.type === "LOCAL"){
+            try{
+                const res = await GetRequest(EndPoints.optimizationReport, this.config);
+                if(res instanceof Error)
+                    return res;
+                if(!res.ok){
+                    const body = await res.json().catch(() => ({}));
+                    return new Error(body?.error || `Request failed: ${res.status}`);
+                }
+                return await res.json();
+            } catch (e) {
+                return new Error("Request failed:", {cause: e})
+            }
+        }
+    }
+
     public async LoadModel(file:File){
         if(this.config.type === "LOCAL"){
             try {
@@ -94,7 +132,45 @@ export class Client {
         }
     }
 
-    
+    public async getAdvancedAnalysis(){
+        if(this.config.type === "LOCAL"){
+            try {
+                return await Request(EndPoints.advancedAnalysis, this.config, {});
+            } catch (e) {
+                return new Error("Request failed:", {cause: e})
+            }
+        }
+    }
+
+    public async getCorrelationAnalysis(){
+        if(this.config.type === "LOCAL"){
+            try {
+                return await Request(EndPoints.correlationAnalysis, this.config, {});
+            } catch (e) {
+                return new Error("Request failed:", {cause: e})
+            }
+        }
+    }
+
+    public async getChartData(){
+        if(this.config.type === "LOCAL"){
+            try {
+                return await Request(EndPoints.chartData, this.config, {});
+            } catch (e) {
+                return new Error("Request failed:", {cause: e})
+            }
+        }
+    }
+
+    public async getTargetAnalysis(targetColumn: string){
+        if(this.config.type === "LOCAL"){
+            try {
+                return await Request(EndPoints.targetAnalysis, this.config, {targetColumn});
+            } catch (e) {
+                return new Error("Request failed:", {cause: e})
+            }
+        }
+    }
 
     //Project handling
     public async ExportProject(){
@@ -106,10 +182,11 @@ export class Client {
                     throw file;
                 const downloadLink = window.URL.createObjectURL(new Blob([file]));
 
-                let fileName = ""
-                const projectData = sessionStorage.getItem("loadedProject");
-                if(projectData && projectData !== "undefined")
-                    fileName = JSON.parse(projectData).projectData.name;
+                let fileName = "";
+                const project = useProjectStore.getState().project;
+                if (project?.projectData?.name) {
+                    fileName = project.projectData.name;
+                }
 
                 const link = document.createElement('a');
                 link.href = downloadLink;
@@ -336,6 +413,116 @@ export class Client {
                     descriptor: args.descriptor,
                     nodeIds: args.nodeIds,
                     expandedNodes: args.expandedNodes || [],
+                });
+            } catch (e) {
+                return new Error("Request failed:", {cause: e})
+            }
+        }
+    }
+
+    // ---------------- New editor endpoints (/editor/ prefix) ----------------
+
+    /** GET /editor/catalog – full schema catalog. Falls back to legacy endpoint on error. */
+    public async getEditorCatalog(){
+        if(this.config.type === "LOCAL"){
+            try{
+                return await GetRequest(EndPoints.editorCatalog, this.config).then(r => r.json());
+            } catch {
+                // fallback to legacy path
+                try {
+                    return await Request(EndPoints.getModelEditorCatalog, this.config);
+                } catch (e) {
+                    return new Error("Request failed:", {cause: e});
+                }
+            }
+        }
+    }
+
+    /** GET /editor/templates – starter architectures. */
+    public async getEditorTemplates(){
+        if(this.config.type === "LOCAL"){
+            try{
+                return await GetRequest(EndPoints.editorTemplates, this.config).then(r => r.json());
+            } catch (e) {
+                return new Error("Request failed:", {cause: e})
+            }
+        }
+    }
+
+    /** POST /editor/undo */
+    public async undo(args: {
+        viewMode?: "summary" | "detailed" | "hybrid",
+        expandedNodes?: string[],
+    } = {}){
+        if(this.config.type === "LOCAL"){
+            try{
+                return await Request(EndPoints.editorUndo, this.config, {
+                    viewMode: args.viewMode || "summary",
+                    expandedNodes: args.expandedNodes || [],
+                });
+            } catch (e) {
+                return new Error("Request failed:", {cause: e})
+            }
+        }
+    }
+
+    /** POST /editor/redo */
+    public async redo(args: {
+        viewMode?: "summary" | "detailed" | "hybrid",
+        expandedNodes?: string[],
+    } = {}){
+        if(this.config.type === "LOCAL"){
+            try{
+                return await Request(EndPoints.editorRedo, this.config, {
+                    viewMode: args.viewMode || "summary",
+                    expandedNodes: args.expandedNodes || [],
+                });
+            } catch (e) {
+                return new Error("Request failed:", {cause: e})
+            }
+        }
+    }
+
+    /** POST /previewEdit – dry-run (does not persist). Same signature as editModel. */
+    public async previewEdit(args:{
+        descriptor?: any,
+        operation: string,
+        payload?: any,
+        viewMode?: "summary" | "detailed" | "hybrid",
+        expandedNodes?: string[],
+    }){
+        if(this.config.type === "LOCAL"){
+            try{
+                return await Request(EndPoints.previewEdit, this.config, {
+                    descriptor: args.descriptor,
+                    operation: args.operation,
+                    payload: args.payload || {},
+                    persist: false,
+                    viewMode: args.viewMode || "summary",
+                    expandedNodes: args.expandedNodes || [],
+                });
+            } catch (e) {
+                return new Error("Request failed:", {cause: e})
+            }
+        }
+    }
+
+    /** POST /checkEdge – validate a proposed connection before committing it. */
+    public async checkEdge(args:{
+        source: string,
+        target: string,
+        sourcePort?: string,
+        targetPort?: string,
+        descriptor?: any,
+    }){
+        if(this.config.type === "LOCAL"){
+            try{
+                return await Request(EndPoints.checkEdge, this.config, {
+                    source: args.source,
+                    target: args.target,
+                    sourcePort: args.sourcePort || "output",
+                    targetPort: args.targetPort || "input",
+                    descriptor: args.descriptor,
                 });
             } catch (e) {
                 return new Error("Request failed:", {cause: e})

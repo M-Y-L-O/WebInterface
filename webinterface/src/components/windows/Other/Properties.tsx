@@ -1,8 +1,8 @@
 "use client";
 
-import {useSelectedStore, useVisualisationStore} from "@/lib/store";
+import {useActiveInspectContext} from "@/lib/store";
 import {GraphNode, getNodeCategory, getNodeColor} from "@/lib/windows/visualiserHelpers";
-import {ReactNode, useState, useEffect} from "react";
+import {ReactNode} from "react";
 import Styles from "./Properties.module.css"
 import {AnimatePresence, motion} from "framer-motion";
 
@@ -155,22 +155,33 @@ function NodeInfo({node}:{node:GraphNode|null}){
 }
 
 export default function Properties() {
-    const selected = useSelectedStore(state => state.selected);
-    const visRes = useVisualisationStore(state => state.visualisation);
+    const context = useActiveInspectContext();
+    const selected = context?.selected ?? null;
+    const visRes = context?.visualisation ?? null;
 
-    let parsed = (visRes === null || typeof visRes === 'undefined' || visRes === 'undefined')
-        ? null
-        : JSON.parse(visRes);
+    let parsed: any = null;
+    if (visRes != null && visRes !== 'undefined') {
+        if (typeof visRes === 'string') {
+            try {
+                parsed = JSON.parse(visRes);
+            } catch {
+                parsed = null;
+            }
+        } else {
+            parsed = visRes;
+        }
+    }
 
     const activeNode = selected && 'title' in selected ? (selected as GraphNode) : null;
-
-
-
-
 
     return (
         <AnimatePresence mode={"popLayout"}>
         <motion.div className={Styles.container} variants={panelVariants} initial="initial" animate="animate" transition={{duration:0.2}}>
+            {!context && (
+                <div className={Styles.section}>
+                    <h2>Select a Visualiser or Model Editor panel to inspect.</h2>
+                </div>
+            )}
             <NodeInfo node={activeNode}/>
 
             {

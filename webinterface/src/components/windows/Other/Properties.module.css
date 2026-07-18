@@ -7,6 +7,7 @@
     overflow-y: auto;
     overflow-x: hidden;
     text-wrap: wrap;
+    padding-left:0.5rem;
 }
 
 .nodeTitle{

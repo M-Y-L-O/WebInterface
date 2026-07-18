@@ -5,13 +5,12 @@ import {useEffect, useMemo, useState} from "react";
 import {ReactFlow, Background, Controls, MiniMap, Node, Edge, OnSelectionChangeParams, useNodesState, useEdgesState} from "@xyflow/react";
 import '@xyflow/react/dist/style.css';
 
-import {useSelectedStore, useVisualisationStore} from "@/lib/store";
-import {GraphEdge, GraphNode, colorNode, nodeDefaults, simplifyNodeName, getNodeCategory, layoutElements} from "@/lib/windows/visualiserHelpers";
+import {GraphEdge, GraphNode, colorNode, nodeDefaults, simplifyNodeName, layoutElements} from "@/lib/windows/visualiserHelpers";
+import {useInspectablePanel} from "@/lib/windows/useInspectablePanel";
 
 
 export default function Visualiser(props: IDockviewPanelProps){
-    const setVis = useVisualisationStore(state => state.setVisualisation);
-    const setSelected = useSelectedStore(state => state.setSelected);
+    const { setSelected, setVisualisation } = useInspectablePanel(props.api);
 
     const [nodes, setNodes, onNodesChange] = useNodesState([]);
     const [edges, setEdges, onEdgeChange] = useEdgesState([]);
@@ -133,8 +132,6 @@ export default function Visualiser(props: IDockviewPanelProps){
 
         async function loadVisualisation() {
             if (sourceVisualisation) {
-                const serialized = JSON.stringify(sourceVisualisation);
-                setVis(serialized);
                 setParsed(sourceVisualisation);
                 await buildGraph(sourceVisualisation);
                 return;
@@ -150,7 +147,12 @@ export default function Visualiser(props: IDockviewPanelProps){
         return () => {
             cancelled = true;
         };
-    }, [sourceVisualisation, setEdges, setNodes, setVis]);
+    }, [sourceVisualisation, setEdges, setNodes]);
+
+    // Keep inspect context in sync without retriggering graph layout.
+    useEffect(() => {
+        setVisualisation(sourceVisualisation);
+    }, [sourceVisualisation, setVisualisation]);
 
     return <div className={"w-full h-full"}>
         <ReactFlow nodes={nodes} edges={edges} onNodesChange={onNodesChange} onEdgesChange={onEdgeChange} onSelectionChange={onSelectionChange} fitView colorMode={"dark"}>

@@ -22,7 +22,7 @@ export default function MenuBar(){
     const [hoveredIndex, setHoveredIndex] = React.useState<number | null>(null);
 
 
-    const api = useDockviewStore.getState().api;
+    const api = useDockviewStore(state => state.api);
     function openPanel(component:string, id:string, title:string, params?:Record<string, unknown>){
         if(!api)
             return;
@@ -45,39 +45,31 @@ export default function MenuBar(){
             label:"Project",
             children:[
                 {
-                    label:"Import Model",
-                    onClick:()=>LoadModel(client)
-                },
-                {
-                    label:"Import CSV",
-                    onClick:()=>LoadCSV(client)
-                },
-                {
                     label:"Save Project",
                     onClick:()=>SaveProject(client)
                 },
                 {
                     label:"Open Project",
                     onClick:()=>OpenProject(client)
+                },
+                {
+                    label:"Load Model",
+                    onClick:()=>LoadModel(client)
+
+                },
+                {
+                    label:"Load CSV",
+                    onClick:()=>LoadCSV(client)
                 }
             ]
         },
         {
-            label:"Model",
+            label:"View",
             children:[
                 {
                     label:"File Explorer",
                     onClick:()=>addWindow("FileExplorer", "File Explorer")
                 },
-                {
-                    label:"Optimize",
-                    onClick:()=>addWindow("Optimization", "Optimization")
-                }
-            ]
-        },
-        {
-            label:"Data",
-            children:[
                 {
                     label:"Dataset Info",
                     onClick:()=>addWindow("DataInfo")
@@ -85,20 +77,13 @@ export default function MenuBar(){
                 {
                     label:"Data viewer",
                     onClick:()=>addWindow("DataViewer")
-                }
-            ]
-        },
-        {
-            label:"Other",
-            children:[{
-                label:"Properties",
-                onClick:()=>addWindow("Properties")
                 },
                 {
-                label:"Settings",
-                onClick:()=>addWindow("Settings")
-            }]
-        }
+                    label:"Properties",
+                    onClick:()=>addWindow("Properties")
+                },
+            ]
+        },
     ]
 
     const dropdownVariants = {

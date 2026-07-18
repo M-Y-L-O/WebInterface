@@ -1,10 +1,13 @@
+"use client";
+
 import DataTable from "@/components/functional/DataTable";
+import {useProjectStore} from "@/lib/store";
 
 export default function DataViewer() {
-    const stored = sessionStorage.getItem("csv");
-    if(stored === null || stored === "null" || stored === "undefined" || stored === "{}")
+    const results = useProjectStore(state => state.csv);
+    if (!results) {
         return <div>No data loaded</div>;
-    const results = JSON.parse(stored);
+    }
     return (
         <div className={"w-full h-full overflow-auto"}>
             <DataTable results={results}/>

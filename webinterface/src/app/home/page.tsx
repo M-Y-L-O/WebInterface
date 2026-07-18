@@ -1,120 +1,105 @@
 "use client"
 import React, {useEffect, useState} from "react";
-import {useClientStore} from "@/lib/store";
-import {ClientConfig, ClientType} from "@/lib/client/ClientTypes";
-import {useRouter} from "next/navigation";
+import {ClientConfig} from "@/lib/client/ClientTypes";
 import {toast} from "sonner";
 
 import "./styles.css"
-import {createConfig, deleteConfig, getConfigs, updateConfig} from "@/lib/db/configs";
+import {getConfigs} from "@/lib/db/configs";
 import {getSession} from "next-auth/react";
-import {OpenProject} from "@/lib/windows/Actions";
-import {useDockviewStore, useSelectedStore, useVisualisationStore} from "@/lib/store";
+import {
+    migrateLegacySessionStorage,
+    onStoresHydrated,
+    resetSessionForHome,
+    storesHaveHydrated,
+    useClientStore,
+} from "@/lib/store";
 import ProjectsPage from "@/components/pages/ProjectsPage";
 import ConfigsPage from "@/components/pages/ConfigsPage";
 import {AnimatePresence, motion} from "framer-motion";
-import Style from "@/components/structural/MenuBar.module.css";
 
 export default function Home() {
     const [activeConfig, setActiveConfig] = useState<number|undefined|null>();
-    const [configStatus, setConfigStatus] = useState<string>("Offline")
     const [configs, setConfigs] = useState<ClientConfig[]>([]);
-
     const [openPage, setOpenPage] = useState<number>(0);
+    const [hydrated, setHydrated] = useState(false);
 
-
-
-    const setClient = useClientStore(state => state.setConfig);
+    const status = useClientStore(state => state.status);
+    const connect = useClientStore(state => state.connect);
     const clearClient = useClientStore(state => state.clearClient);
-    const clearApi = useDockviewStore(state => state.clearApi);
-    const clearSelected = useSelectedStore(state => state.clearSelected);
-    const clearVisualisation = useVisualisationStore(state => state.clearVisualisation);
 
+    const configStatus =
+        status === "connected" ? "Connected" :
+        status === "connecting" ? "Connecting" :
+        "Offline";
 
     async function loadConfigs(){
-        sessionStorage.removeItem("activeProject");
-        sessionStorage.removeItem("visRes");
-        sessionStorage.removeItem("loadedProject");
-        clearClient();
-        clearApi();
-        clearSelected();
-        clearVisualisation();
+        migrateLegacySessionStorage();
+        resetSessionForHome();
+
         const session = await getSession();
         if(!session)
             return;
         //@ts-ignore
-        const configs = await getConfigs(session.user.id);
-        setConfigs(configs);
+        const nextConfigs = await getConfigs(session.user.id);
+        setConfigs(nextConfigs);
 
-        if(configs.length > 0){
-            const activeConfig = sessionStorage.getItem("activeConfig");
-            if(activeConfig && activeConfig!="undefined"){
-                const parsed = JSON.parse(activeConfig);
-                const index = configs.findIndex((c)=>c.dbId === parsed.dbId);
-                if(index !== -1){
-                    setClient(configs[index]);
-                    sessionStorage.setItem("activeConfig", JSON.stringify(configs[index]));
-                    setActiveConfig(index);
-
-                    await loadClient(index, false, useClientStore.getState().client);
-                    console.log(index);
-                }
-            }
+        if(nextConfigs.length === 0){
+            clearClient();
+            setActiveConfig(null);
+            return;
         }
-    }
 
-
-
-    async function loadClient(index: number, setMemory?:boolean, _client?:any){
-        setConfigStatus("Connecting");
-        if(setMemory==null || setMemory===true) {
-            sessionStorage.setItem("activeConfig", JSON.stringify(configs[index]));
-            console.log(configs[index]);
-        }
-        setActiveConfig(index);
-
-        let client = useClientStore.getState().client;
-        if(_client)
-            client = _client;
-        if(!client){
-            useClientStore.getState().setConfig(configs[index]);
-        }
-        client = useClientStore.getState().client;
-        console.log(client);
-        if(client){
-            const res = await client.TestConnection();
-            console.log(res);
-            if(res.Status === "Timed out")
-            {
-                setConfigStatus("Offline");
-                setActiveConfig(null);
-                toast.error("Connection timed out", { description:"Client probably offline"});
+        const preferred = useClientStore.getState().config;
+        if(preferred?.dbId){
+            const index = nextConfigs.findIndex((c)=>c.dbId === preferred.dbId);
+            if(index !== -1){
+                await selectClient(index, nextConfigs);
                 return;
             }
-            if(res.Status === true){
-                setConfigStatus("Connected");
-                toast.success("Connected", {duration: 5000});
-            }
-            else
-                try{
-                    await client.Initialize();
-                    setConfigStatus("Connected");
-                    toast.success("Connected", {duration: 5000});
-                } catch (e) {
-                    setActiveConfig(null);
-                    setConfigStatus("Offline");
-                    toast.error("Failed to connect", {duration: 5000, description: res.status});
-                }
         }
+
+        clearClient();
+        setActiveConfig(null);
     }
 
+    async function selectClient(index: number, list: ClientConfig[] = configs){
+        const config = list[index];
+        if(!config) return;
 
+        setActiveConfig(index);
+        const result = await connect(config);
+
+        if(result.status === "timed_out"){
+            setActiveConfig(null);
+            toast.error("Connection timed out", { description:"Client probably offline"});
+            return;
+        }
+
+        if(result.ok){
+            toast.success("Connected", {duration: 5000});
+            return;
+        }
+
+        setActiveConfig(null);
+        toast.error("Failed to connect", {
+            duration: 5000,
+            description: result.error || "Unknown error",
+        });
+    }
+
+    useEffect(() => {
+        if (storesHaveHydrated()) {
+            setHydrated(true);
+        }
+        return onStoresHydrated(() => setHydrated(true));
+    }, []);
 
     useEffect(()=>{
-        loadConfigs();
-    }, [])
+        if (!hydrated) return;
+        void loadConfigs();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [hydrated])
 
-    // @ts-ignore
     return (
         <main>
                 <div className={"hero"}>
@@ -170,7 +155,7 @@ export default function Home() {
                 }
                 {
                     openPage === 1 &&
-                    <ConfigsPage configs={configs} activeConfig={activeConfig} clientStatus={configStatus} onClientSelect={loadClient} setConfigs={setConfigs} loadConfigs={()=>{ loadConfigs();}}/>
+                    <ConfigsPage configs={configs} activeConfig={activeConfig} clientStatus={configStatus} onClientSelect={(i)=>selectClient(i)} setConfigs={setConfigs} loadConfigs={()=>{ void loadConfigs();}}/>
                 }
             </AnimatePresence>
 

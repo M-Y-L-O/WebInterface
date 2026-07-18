@@ -1,4 +1,4 @@
-import {useClientStore} from "@/lib/store";
+import {useClientStore, useProjectStore} from "@/lib/store";
 import {OpenProject} from "@/lib/windows/Actions";
 import {useEffect, useState} from "react";
 import {useRouter} from "next/navigation";
@@ -13,15 +13,13 @@ export default function ProjectsPage({activeConfig, clientStatus, onStatusClick}
     const [userName, setUserName] = useState<string>("");
 
     const [activeProject, setActiveProject] = useState<any | null>(null);
+    const hydrateFromProject = useProjectStore(state => state.hydrateFromProject);
     const router = useRouter();
 
     async function loadActiveProject(client:any){
         const project = await client.getProject();
         if(project && project.projectData){
             setActiveProject(project);
-            if(project.projectData.id) {
-                sessionStorage.setItem("activeProject", JSON.stringify(project));
-            }
         }
     }
 
@@ -29,12 +27,7 @@ export default function ProjectsPage({activeConfig, clientStatus, onStatusClick}
         if(index!=-1)
             return;
         else {
-            sessionStorage.setItem("loadedProject", JSON.stringify(activeProject));
-            if(activeProject.modelData)
-                sessionStorage.setItem("visRes", JSON.stringify(activeProject.modelData));
-            if(activeProject.csvData)
-                sessionStorage.setItem("csv", JSON.stringify(activeProject.csvData));
-
+            hydrateFromProject(activeProject);
             router.push("/dashboard");
         }
 
