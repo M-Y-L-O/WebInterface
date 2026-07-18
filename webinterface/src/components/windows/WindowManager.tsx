@@ -31,7 +31,7 @@ function applyDefaultLayout(api: DockviewReadyEvent["api"]) {
 function tryRestoreLayout(api: DockviewReadyEvent["api"], layout: DockLayoutJson | null): boolean {
     if (!layout) return false;
     try {
-        api.fromJSON(layout as any);
+        api.fromJSON(layout);
         return true;
     } catch {
         return false;
@@ -62,7 +62,7 @@ export default function WindowManager(){
         }
 
         layoutDisposableRef.current = event.api.onDidLayoutChange(()=>{
-            setLayout(event.api.toJSON() as DockLayoutJson, projectId);
+            setLayout(event.api.toJSON(), projectId);
         })
 
         setApi(event.api);

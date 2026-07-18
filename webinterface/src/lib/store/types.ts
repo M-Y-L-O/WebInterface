@@ -1,4 +1,5 @@
 import type { ClientConfig } from "@/lib/client/ClientTypes";
+import type { SerializedDockview } from "dockview-core";
 
 export type ConnectionStatus = "offline" | "connecting" | "connected";
 
@@ -25,7 +26,7 @@ export type PersistedProjectState = {
     visualisation: unknown | null;
 };
 
-export type DockLayoutJson = Record<string, unknown>;
+export type DockLayoutJson = SerializedDockview;
 
 export type PersistedWorkspaceState = {
     layoutsByProjectId: Record<string, DockLayoutJson>;
