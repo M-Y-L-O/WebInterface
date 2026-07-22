@@ -29,7 +29,7 @@ const menuVariants: Variants = {
     }
 }
 
-export default function Dropdown({options, defaultValue, onChange}:{options:string[], defaultValue:string, onChange:(option:string)=>void}) {
+export default function Dropdown({options, defaultValue, onChange, textColor}:{options:string[], defaultValue:string, onChange:(option:string)=>void, textColor?:string}) {
     const [open, setOpen] = useState(false);
     const [selected, setSelected] = useState(defaultValue);
     const dropDownRef = useRef<HTMLDivElement | null>(null)
@@ -48,7 +48,7 @@ export default function Dropdown({options, defaultValue, onChange}:{options:stri
     return(
         <div className={"relative w-full"} ref={dropDownRef}>
             <button className={Style.toggle} onClick={()=>setOpen(!open)}>
-                <span>{selected}</span>
+                <span style={textColor ?  {color:textColor} : {}}>{selected}</span>
                 <motion.div
                     animate={{rotate: open ? 180 : 0}}
                     transition={{duration: 0.2}}

@@ -2,7 +2,7 @@
 import React from 'react';
 import {useRouter} from "next/navigation";
 import {useClientStore, useDockviewStore} from "@/lib/store";
-import {LoadModel, LoadCSV, SaveProject, OpenProject} from "@/lib/windows/Actions";
+import {LoadModel, LoadCSV, SaveProject, SaveProjectToCloud, OpenProject} from "@/lib/windows/Actions";
 import Style from "./MenuBar.module.css"
 import {AnimatePresence, motion} from "framer-motion";
 
@@ -49,6 +49,17 @@ export default function MenuBar(){
                     onClick:()=>SaveProject(client)
                 },
                 {
+                    label:"Save to Cloud",
+                    onClick: async () => {
+                        const result = await SaveProjectToCloud(client);
+                        if (result === "needs_overwrite") {
+                            if (window.confirm("A cloud project with this name already exists. Overwrite it?")) {
+                                await SaveProjectToCloud(client, {overwrite: true});
+                            }
+                        }
+                    }
+                },
+                {
                     label:"Open Project",
                     onClick:()=>OpenProject(client)
                 },
@@ -67,8 +78,8 @@ export default function MenuBar(){
             label:"View",
             children:[
                 {
-                    label:"File Explorer",
-                    onClick:()=>addWindow("FileExplorer", "File Explorer")
+                    label:"Project Manager",
+                    onClick:()=>addWindow("FileExplorer", "Project Manager")
                 },
                 {
                     label:"Dataset Info",

@@ -13,6 +13,8 @@ import {
     useProjectStore,
     useWorkspaceStore,
 } from "@/lib/store";
+import { ClientType } from "@/lib/client/ClientTypes";
+import { provisionCloudSession } from "@/lib/cloud/sessionClient";
 import "./styles.css"
 
 function DashboardInner() {
@@ -49,9 +51,32 @@ function DashboardInner() {
                 return;
             }
 
-            const result = await connect();
+            let result = await connect();
 
             if (cancelled) return;
+
+            // Cloud agent may have died (Docker/orchestrator restart) — spin a fresh one once.
+            if (!result.ok && config.type === ClientType.CLOUD && config.dbId) {
+                const toastId = toast.loading("Cloud agent unreachable — restarting session…");
+                const restarted = await provisionCloudSession({
+                    configId: config.dbId,
+                    name: config.name,
+                });
+                if (cancelled) return;
+                if (restarted.ok) {
+                    useClientStore.getState().setConfig(restarted.config);
+                    toast.success("Cloud session restarted", { id: toastId, duration: 4000 });
+                    result = await connect(restarted.config);
+                    if (cancelled) return;
+                } else {
+                    toast.error("Failed to restart cloud session", {
+                        id: toastId,
+                        duration: 5000,
+                        description: restarted.error,
+                    });
+                    return;
+                }
+            }
 
             if (result.status === "timed_out") {
                 toast.error("Connection timed out", { description:"Client probably offline"});
@@ -76,14 +101,24 @@ function DashboardInner() {
                 if (cancelled) return;
 
                 if (created?.message === "Success") {
-                    toast.success("Project created", {duration: 5000});
-                    hydrateFromProject(created.data);
-                    clearSelected();
-                    router.replace("/dashboard");
+                    // /newProject returns a flat payload; store expects /getProject shape.
+                    const full = await client.getProject();
+                    if (cancelled) return;
+                    if (full && !(full instanceof Error) && full.projectData) {
+                        toast.success("Project created", {duration: 5000});
+                        hydrateFromProject(full);
+                        clearSelected();
+                        router.replace("/dashboard");
+                    } else {
+                        toast.error("Project created but failed to load", {
+                            duration: 5000,
+                            description: full instanceof Error ? full.message : "Invalid project payload",
+                        });
+                    }
                 } else {
                     toast.error("Failed to create project", {
                         duration: 5000,
-                        description: created?.message,
+                        description: created?.message || created?.error || "Unknown error",
                     });
                 }
             }

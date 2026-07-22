@@ -11,3 +11,11 @@ export interface SlotDescriptor {
     canOptimize: boolean;
     canDownload: boolean;
 }
+
+/** A starter architecture from GET /editor/templates */
+export interface EditorTemplate {
+    id: string;
+    label: string;
+    description: string;
+    descriptor: Record<string, any>;
+}

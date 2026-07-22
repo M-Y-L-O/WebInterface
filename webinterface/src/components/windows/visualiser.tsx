@@ -9,6 +9,19 @@ import {GraphEdge, GraphNode, colorNode, nodeDefaults, simplifyNodeName, layoutE
 import {useInspectablePanel} from "@/lib/windows/useInspectablePanel";
 
 
+function resolveVisualisation(raw: any) {
+    if (!raw) return null;
+    if (typeof raw === "string") {
+        try {
+            return JSON.parse(raw);
+        } catch {
+            return null;
+        }
+    }
+    return raw;
+}
+
+
 export default function Visualiser(props: IDockviewPanelProps){
     const { setSelected, setVisualisation } = useInspectablePanel(props.api);
 
@@ -18,22 +31,29 @@ export default function Visualiser(props: IDockviewPanelProps){
 
     const panelParams = (props as any).params || {};
     const providedVisualisation = panelParams.visualisation || panelParams.modelData || panelParams.data;
+    const modelRevision = panelParams.modelRevision;
+
+    // Live params from updateParameters (editor save / re-open) — React props alone can lag.
+    const [paramVisualisation, setParamVisualisation] = useState<any>(providedVisualisation);
+    const [paramRevision, setParamRevision] = useState<number | undefined>(modelRevision);
+
+    useEffect(() => {
+        setParamVisualisation(providedVisualisation);
+        setParamRevision(modelRevision);
+    }, [providedVisualisation, modelRevision]);
+
+    useEffect(() => {
+        const disposable = props.api.onDidParametersChange((parameters: any) => {
+            const next = parameters?.visualisation || parameters?.modelData || parameters?.data;
+            if (next !== undefined) setParamVisualisation(next);
+            if (parameters?.modelRevision !== undefined) setParamRevision(parameters.modelRevision);
+        });
+        return () => disposable.dispose();
+    }, [props.api]);
 
     const sourceVisualisation = useMemo(() => {
-        if (providedVisualisation) {
-            if (typeof providedVisualisation === "string") {
-                try {
-                    return JSON.parse(providedVisualisation);
-                } catch {
-                    return null;
-                }
-            }
-
-            return providedVisualisation;
-        }
-
-        return null;
-    }, [providedVisualisation]);
+        return resolveVisualisation(paramVisualisation);
+    }, [paramVisualisation, paramRevision]);
 
     function onSelectionChange(params: OnSelectionChangeParams) {
 

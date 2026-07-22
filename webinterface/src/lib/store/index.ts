@@ -30,10 +30,6 @@ const LEGACY_KEYS = [
     "csv",
 ] as const;
 
-/**
- * One-shot migration from ad-hoc sessionStorage keys into Zustand persist stores.
- * Safe to call on home/dashboard boot.
- */
 export function migrateLegacySessionStorage(): void {
     if (typeof window === "undefined") return;
 
@@ -72,7 +68,6 @@ export function migrateLegacySessionStorage(): void {
     }
 }
 
-/** Reset project + workspace chrome when returning to the home hub. Keeps client config. */
 export function resetSessionForHome(): void {
     useProjectStore.getState().clearProject();
     useWorkspaceStore.getState().resetChrome();

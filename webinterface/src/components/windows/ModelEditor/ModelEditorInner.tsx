@@ -21,6 +21,7 @@ import "@xyflow/react/dist/style.css";
 import { useClientStore } from "@/lib/store";
 import { useInspectablePanel } from "@/lib/windows/useInspectablePanel";
 import { layoutElements } from "@/lib/windows/visualiserHelpers";
+import { publishSavedModelGraph } from "@/lib/windows/Actions";
 
 import { Catalog, ParamField, ParamFieldType, ViewMode } from "./types";
 import {
@@ -87,6 +88,11 @@ export default function ModelEditorInner(props: IDockviewPanelProps) {
     // Selection
     const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
     const [selectedEdge, setSelectedEdge] = useState<{ from: string; to: string } | null>(null);
+    // Refs so async renderGraph can preserve selection across preview/edit rebuilds
+    const selectedNodeIdRef = useRef<string | null>(null);
+    const selectedEdgeRef = useRef<{ from: string; to: string } | null>(null);
+    selectedNodeIdRef.current = selectedNodeId;
+    selectedEdgeRef.current = selectedEdge;
 
     // Node settings draft
     const [nodeTypeDraft, setNodeTypeDraft] = useState<string>("Linear");
@@ -100,6 +106,11 @@ export default function ModelEditorInner(props: IDockviewPanelProps) {
 
     const [busy, setBusy] = useState(false);
     const lastGraphRef = useRef<any>(null);
+    // Keep latest RF nodes for position preservation across edit/preview rebuilds
+    const nodesRef = useRef<Node[]>([]);
+    nodesRef.current = nodes;
+    /** Positions for nodes about to be added (e.g. context-menu click). Consumed by renderGraph. */
+    const pendingPositionsRef = useRef<Record<string, { x: number; y: number }>>({});
 
     // Context menu state
     const [contextMenu, setContextMenu] = useState<{
@@ -139,15 +150,78 @@ export default function ModelEditorInner(props: IDockviewPanelProps) {
     // ---------------------------------------------------------------------------
     // Graph rendering
     // ---------------------------------------------------------------------------
-    async function renderGraph(graph: any) {
+    async function renderGraph(graph: any, opts?: { relayout?: boolean }) {
         lastGraphRef.current = graph;
         const { nodes: rfNodes, edges: rfEdges } = buildReactFlow(graph, catalog);
-        const positioned = await layoutElements(rfNodes, rfEdges, false);
+
+        const prevById = new Map(nodesRef.current.map((n) => [String(n.id), n]));
+        const pending = pendingPositionsRef.current;
+        pendingPositionsRef.current = {};
+
+        const shouldRelayout = Boolean(opts?.relayout) || prevById.size === 0;
+        let positioned: any[];
+        if (shouldRelayout) {
+            positioned = await layoutElements(rfNodes, rfEdges, false);
+            // Honour explicit placements (e.g. context-menu add) even after a full layout
+            positioned = positioned.map((n: any) => {
+                const forced = pending[String(n.id)];
+                return forced ? { ...n, position: forced } : n;
+            });
+        } else {
+            positioned = rfNodes.map((n) => {
+                const id = String(n.id);
+                const forced = pending[id];
+                if (forced) return { ...n, position: forced };
+
+                const prev = prevById.get(id);
+                if (prev) {
+                    return {
+                        ...n,
+                        position: prev.position,
+                        width: prev.width,
+                        height: prev.height,
+                    };
+                }
+
+                // New node without a pending position — drop near selection / graph center
+                const anchorId = selectedNodeIdRef.current;
+                const anchor = anchorId ? prevById.get(String(anchorId)) : undefined;
+                const base = anchor?.position ?? { x: 240, y: 120 };
+                return {
+                    ...n,
+                    position: { x: base.x + 200, y: base.y },
+                };
+            });
+        }
+
+        // Replacing nodes clears React Flow selection unless we carry it forward.
+        // Without this, live param preview closes the settings panel mid-edit.
+        const keepNodeId = selectedNodeIdRef.current;
+        const keepEdge = selectedEdgeRef.current;
+        const nextNodes = positioned.map((n: any) => ({
+            ...n,
+            selected: keepNodeId != null && String(n.id) === String(keepNodeId),
+        }));
+        const nextEdges = rfEdges.map((e: any) => ({
+            ...e,
+            selected:
+                !!keepEdge &&
+                String(e.source) === keepEdge.from &&
+                String(e.target) === keepEdge.to,
+        }));
+
         // @ts-ignore
-        setNodes(positioned);
+        setNodes(nextNodes);
         // @ts-ignore
-        setEdges(rfEdges);
+        setEdges(nextEdges);
         setVisualisation(graph);
+
+        // Clear selection only when the selected node was actually removed
+        if (keepNodeId && !nextNodes.some((n: any) => String(n.id) === String(keepNodeId))) {
+            setSelectedNodeId(null);
+            selectedNodeIdRef.current = null;
+            setSelected(null);
+        }
     }
 
     // ---------------------------------------------------------------------------
@@ -156,7 +230,7 @@ export default function ModelEditorInner(props: IDockviewPanelProps) {
     async function loadInitial() {
         if (!client) {
             setDescriptor(defaultEmptyDescriptor());
-            await renderGraph({ nodes: [], edges: [], summary: {} });
+            await renderGraph({ nodes: [], edges: [], summary: {} }, { relayout: true });
             return;
         }
 
@@ -196,7 +270,7 @@ export default function ModelEditorInner(props: IDockviewPanelProps) {
                 );
             }
             if ((graphRes as any)?.shapes) setShapes((graphRes as any).shapes);
-            await renderGraph(graphRes);
+            await renderGraph(graphRes, { relayout: true });
         } catch (e: any) {
             toast.error("Failed to load model editor", {
                 description: e?.message || "Unknown error",
@@ -210,7 +284,7 @@ export default function ModelEditorInner(props: IDockviewPanelProps) {
                     expandedNodes,
                 });
                 if (!(graphRes instanceof Error) && !(graphRes as any)?.error) {
-                    await renderGraph(graphRes);
+                    await renderGraph(graphRes, { relayout: true });
                 }
             }
         } finally {
@@ -226,43 +300,68 @@ export default function ModelEditorInner(props: IDockviewPanelProps) {
     // ---------------------------------------------------------------------------
     // Typed error dispatch
     // ---------------------------------------------------------------------------
+    function parseApiFailure(res: unknown, fallback = "Operation failed"): { code?: string; message: string } {
+        if (res instanceof Error) {
+            const cause = (res as Error & { cause?: unknown }).cause;
+            const causeMsg =
+                cause instanceof Error
+                    ? cause.message
+                    : typeof cause === "string"
+                      ? cause
+                      : undefined;
+            return { message: res.message || causeMsg || fallback };
+        }
+        const raw = (res as any)?.error;
+        if (typeof raw === "string" && raw.trim()) {
+            return { message: raw };
+        }
+        if (raw && typeof raw === "object") {
+            return {
+                code: raw.code,
+                message: raw.message || fallback,
+            };
+        }
+        if (typeof (res as any)?.message === "string" && (res as any).message.trim()) {
+            return { message: (res as any).message };
+        }
+        return { message: fallback };
+    }
+
     function handleApiError(code: ApiErrorCode | string | undefined, message: string, toastId?: string | number) {
+        const opts = { id: toastId, description: message };
         switch (code as ApiErrorCode) {
             case "NO_UNDO_HISTORY":
                 setCanUndo(false);
-                toast.error("Nothing to undo", { id: toastId });
+                toast.error("Nothing to undo", opts);
                 return;
             case "NO_REDO_HISTORY":
                 setCanRedo(false);
-                toast.error("Nothing to redo", { id: toastId });
+                toast.error("Nothing to redo", opts);
                 return;
             case "DETAILED_VIEW_FAILED":
                 toast.error("Detailed view failed — shape mismatch", {
                     id: toastId,
-                    description: "Try Hybrid view or fix node dimensions first.",
+                    description: message || "Try Hybrid view or fix node dimensions first.",
                 });
                 return;
             case "CYCLE_DETECTED":
-                toast.error("Cycle detected — connection creates a loop", { id: toastId });
+                toast.error("Cycle detected — connection creates a loop", opts);
                 return;
             case "DUPLICATE_NODE_ID":
-                toast.error("Node ID already in use", {
-                    id: toastId,
-                    description: message,
-                });
+                toast.error("Node ID already in use", opts);
                 return;
             case "NODE_NOT_FOUND":
-                toast.error("Node not found — refreshing canvas", { id: toastId });
+                toast.error("Node not found — refreshing canvas", opts);
                 if (client) loadInitial();
                 return;
             case "PORT_NOT_FOUND":
-                toast.error("Port not found", { id: toastId, description: message });
+                toast.error("Port not found", opts);
                 return;
             case "DISCONNECTED_GRAPH":
-                toast.warning("Graph disconnected — some nodes are unreachable", { id: toastId });
+                toast.warning("Graph disconnected — some nodes are unreachable", opts);
                 break;
             default:
-                toast.error("Operation failed", { id: toastId, description: message });
+                toast.error("Operation failed", opts);
         }
     }
 
@@ -284,8 +383,8 @@ export default function ModelEditorInner(props: IDockviewPanelProps) {
             });
 
             if (!res || res instanceof Error || (res as any)?.success === false) {
-                const err = (res as any)?.error;
-                handleApiError(err?.code, err?.message || "Edit failed", toastId);
+                const { code, message } = parseApiFailure(res, "Edit failed");
+                handleApiError(code, message, toastId);
                 return;
             }
 
@@ -343,7 +442,8 @@ export default function ModelEditorInner(props: IDockviewPanelProps) {
         try {
             const res = await client.undo({ viewMode, expandedNodes });
             if (!res || res instanceof Error || (res as any)?.success === false) {
-                handleApiError((res as any)?.error?.code, (res as any)?.error?.message || "Undo failed", toastId);
+                const { code, message } = parseApiFailure(res, "Undo failed");
+                handleApiError(code, message, toastId);
                 return;
             }
             if ((res as any)?.descriptor) setDescriptor((res as any).descriptor);
@@ -365,7 +465,8 @@ export default function ModelEditorInner(props: IDockviewPanelProps) {
         try {
             const res = await client.redo({ viewMode, expandedNodes });
             if (!res || res instanceof Error || (res as any)?.success === false) {
-                handleApiError((res as any)?.error?.code, (res as any)?.error?.message || "Redo failed", toastId);
+                const { code, message } = parseApiFailure(res, "Redo failed");
+                handleApiError(code, message, toastId);
                 return;
             }
             if ((res as any)?.descriptor) setDescriptor((res as any).descriptor);
@@ -423,6 +524,16 @@ export default function ModelEditorInner(props: IDockviewPanelProps) {
             }
             if ((res as any)?.descriptor) setDescriptor((res as any).descriptor);
             if ((res as any)?.graph) await renderGraph((res as any).graph);
+
+            // Propagate saved model to project store + open Visualiser panels
+            publishSavedModelGraph({
+                graph: (res as any)?.graph,
+                descriptor: (res as any)?.descriptor ?? descriptor,
+                filePath: panelParams.filePath,
+                fileName: fileName || panelParams.fileName,
+                sourcePanelId: props.api.id,
+            });
+
             toast.success("Saved", { id: toastId, duration: 2000 });
         } catch (e: any) {
             toast.error("Save failed", { id: toastId, description: e?.message });
@@ -486,7 +597,7 @@ export default function ModelEditorInner(props: IDockviewPanelProps) {
                 throw new Error((graphRes as any)?.error || "Failed to render view");
             }
             if ((graphRes as any)?.shapes) setShapes((graphRes as any).shapes);
-            await renderGraph(graphRes);
+            await renderGraph(graphRes, { relayout: true });
         } catch (e: any) {
             toast.error("Failed to change view", { description: e?.message });
         } finally {
@@ -512,7 +623,7 @@ export default function ModelEditorInner(props: IDockviewPanelProps) {
                 (res as any)?.expandedNodes || [...expandedNodes, selectedNodeId]
             );
             setViewMode("hybrid");
-            await renderGraph(res);
+            await renderGraph(res, { relayout: true });
         } catch (e: any) {
             toast.error("Expand failed", { description: e?.message });
         } finally {
@@ -536,7 +647,7 @@ export default function ModelEditorInner(props: IDockviewPanelProps) {
                 expandedNodes.filter((id) => id !== selectedNodeId)
             );
             setViewMode((res as any)?.viewMode || "summary");
-            await renderGraph(res);
+            await renderGraph(res, { relayout: true });
         } catch (e: any) {
             toast.error("Collapse failed", { description: e?.message });
         } finally {
@@ -556,31 +667,52 @@ export default function ModelEditorInner(props: IDockviewPanelProps) {
               }
             : null;
 
-        if (nextNodeId !== selectedNodeId) setSelectedNodeId(nextNodeId);
-
-        const edgeChanged =
-            (!!nextEdge &&
-                (!selectedEdge ||
-                    nextEdge.from !== selectedEdge.from ||
-                    nextEdge.to !== selectedEdge.to)) ||
-            (!nextEdge && !!selectedEdge);
-        if (edgeChanged) setSelectedEdge(nextEdge);
-
-        if (nextNodeId && lastGraphRef.current?.nodes) {
-            const raw = lastGraphRef.current.nodes.find(
-                (n: any) => String(n.id) === String(nextNodeId)
-            );
-            setSelected(raw || { id: nextNodeId });
-        } else if (nextEdge && lastGraphRef.current?.edges) {
-            const raw = lastGraphRef.current.edges.find(
-                (e: any) =>
-                    String(e.from) === nextEdge.from &&
-                    String(e.to) === nextEdge.to
-            );
-            setSelected(raw || nextEdge);
-        } else {
-            setSelected(null);
+        // Node selected — update panel
+        if (nextNodeId) {
+            if (nextNodeId !== selectedNodeId) setSelectedNodeId(nextNodeId);
+            if (selectedEdge) setSelectedEdge(null);
+            if (lastGraphRef.current?.nodes) {
+                const raw = lastGraphRef.current.nodes.find(
+                    (n: any) => String(n.id) === String(nextNodeId)
+                );
+                setSelected(raw || { id: nextNodeId });
+            } else {
+                setSelected({ id: nextNodeId });
+            }
+            return;
         }
+
+        // Edge selected — clear node panel
+        if (nextEdge) {
+            if (selectedNodeId) setSelectedNodeId(null);
+            const edgeChanged =
+                !selectedEdge ||
+                nextEdge.from !== selectedEdge.from ||
+                nextEdge.to !== selectedEdge.to;
+            if (edgeChanged) setSelectedEdge(nextEdge);
+            if (lastGraphRef.current?.edges) {
+                const raw = lastGraphRef.current.edges.find(
+                    (e: any) =>
+                        String(e.from) === nextEdge.from &&
+                        String(e.to) === nextEdge.to
+                );
+                setSelected(raw || nextEdge);
+            } else {
+                setSelected(nextEdge);
+            }
+            return;
+        }
+
+        // Empty RF selection — ignore here. Graph rebuilds (live preview) briefly
+        // report no selection; pane click clears explicitly via clearCanvasSelection.
+    }
+
+    function clearCanvasSelection() {
+        setSelectedNodeId(null);
+        setSelectedEdge(null);
+        setSelected(null);
+        setNodes((nds) => nds.map((n) => ({ ...n, selected: false })));
+        setEdges((eds) => eds.map((e) => ({ ...e, selected: false })));
     }
 
     // ---------------------------------------------------------------------------
@@ -694,6 +826,13 @@ export default function ModelEditorInner(props: IDockviewPanelProps) {
         const params = paramsForType(quickAddType);
         const nodeId = nextNodeIdForType(quickAddType);
         const connectFrom = selectedNodeId || "input";
+        const anchor = nodesRef.current.find((n) => String(n.id) === String(connectFrom));
+        if (anchor) {
+            pendingPositionsRef.current[nodeId] = {
+                x: anchor.position.x + 200,
+                y: anchor.position.y,
+            };
+        }
         await applyEdit(
             "add_node",
             { nodeId, type: quickAddType, params, connectFrom, connectTo: "output" },
@@ -703,8 +842,13 @@ export default function ModelEditorInner(props: IDockviewPanelProps) {
 
     async function addNodeAtPosition(type: string) {
         if (!contextMenu) return;
+        const flowPos = screenToFlowPosition({
+            x: contextMenu.clientX,
+            y: contextMenu.clientY,
+        });
         const params = paramsForType(type);
         const nodeId = nextNodeIdForType(type);
+        pendingPositionsRef.current[nodeId] = flowPos;
         await applyEdit("add_node", { nodeId, type, params }, false);
         setContextMenu(null);
         setSearchQuery("");
@@ -715,6 +859,12 @@ export default function ModelEditorInner(props: IDockviewPanelProps) {
     // Delete handlers
     // ---------------------------------------------------------------------------
     async function onNodesDelete(deletedNodes: Node[]) {
+        const deletedIds = new Set(deletedNodes.map((n) => String(n.id)));
+        if (selectedNodeIdRef.current && deletedIds.has(String(selectedNodeIdRef.current))) {
+            setSelectedNodeId(null);
+            selectedNodeIdRef.current = null;
+            setSelected(null);
+        }
         for (const node of deletedNodes) {
             const id = String(node.id);
             if (id === "input" || id === "output") continue;
@@ -859,7 +1009,10 @@ export default function ModelEditorInner(props: IDockviewPanelProps) {
                         onSelectionChange={onSelectionChange}
                         onConnect={onConnect}
                         connectOnClick={false}
-                        onPaneClick={() => setContextMenu(null)}
+                        onPaneClick={() => {
+                            setContextMenu(null);
+                            clearCanvasSelection();
+                        }}
                         onPaneContextMenu={(event) => {
                             event.preventDefault();
                             setContextMenu({

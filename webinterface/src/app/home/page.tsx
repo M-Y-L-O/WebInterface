@@ -1,6 +1,6 @@
 "use client"
 import React, {useEffect, useState} from "react";
-import {ClientConfig} from "@/lib/client/ClientTypes";
+import {ClientConfig, ClientType} from "@/lib/client/ClientTypes";
 import {toast} from "sonner";
 
 import "./styles.css"
@@ -15,7 +15,9 @@ import {
 } from "@/lib/store";
 import ProjectsPage from "@/components/pages/ProjectsPage";
 import ConfigsPage from "@/components/pages/ConfigsPage";
+import CatalogPage from "@/components/pages/CatalogPage";
 import {AnimatePresence, motion} from "framer-motion";
+import {provisionCloudSession} from "@/lib/cloud/sessionClient";
 
 export default function Home() {
     const [activeConfig, setActiveConfig] = useState<number|undefined|null>();
@@ -62,29 +64,49 @@ export default function Home() {
         setActiveConfig(null);
     }
 
-    async function selectClient(index: number, list: ClientConfig[] = configs){
+    async function selectClient(index: number, list: ClientConfig[] = configs, allowRestart = true){
         const config = list[index];
         if(!config) return;
 
         setActiveConfig(index);
         const result = await connect(config);
 
-        if(result.status === "timed_out"){
+        if(result.status === "timed_out" || !result.ok){
+            // Dead / unreachable cloud container → restart once, then reconnect.
+            if (allowRestart && config.type === ClientType.CLOUD && config.dbId) {
+                const toastId = toast.loading("Cloud agent unreachable — restarting session…");
+                const restarted = await provisionCloudSession({
+                    configId: config.dbId,
+                    name: config.name,
+                });
+                if (restarted.ok) {
+                    const nextList = [...list];
+                    nextList[index] = restarted.config;
+                    setConfigs(nextList);
+                    toast.success("Cloud session restarted", { id: toastId, duration: 4000 });
+                    await selectClient(index, nextList, false);
+                    return;
+                }
+                toast.error("Failed to restart cloud session", {
+                    id: toastId,
+                    duration: 5000,
+                    description: restarted.error,
+                });
+            }
+
             setActiveConfig(null);
-            toast.error("Connection timed out", { description:"Client probably offline"});
+            if (result.status === "timed_out") {
+                toast.error("Connection timed out", { description:"Client probably offline"});
+            } else {
+                toast.error("Failed to connect", {
+                    duration: 5000,
+                    description: result.error || "Unknown error",
+                });
+            }
             return;
         }
 
-        if(result.ok){
-            toast.success("Connected", {duration: 5000});
-            return;
-        }
-
-        setActiveConfig(null);
-        toast.error("Failed to connect", {
-            duration: 5000,
-            description: result.error || "Unknown error",
-        });
+        toast.success("Connected", {duration: 5000});
     }
 
     useEffect(() => {
@@ -145,6 +167,25 @@ export default function Home() {
                             )
                         }
                     </button>
+                    <button onClick={()=>{setOpenPage(2)}}>
+                        <span className={"relative z-10"} style={openPage===2 ? {color:"var(--card-background)"}:{}}>Catalog</span>
+                        {
+                            openPage === 2 && (
+                                <motion.div
+                                    layoutId={"activePill"}
+                                    transition={{
+                                        type:"spring",
+                                        stiffness: 300,
+                                        damping: 30,
+                                        duration: 0.15,
+                                    }}
+                                    exit={{opacity:0}}
+                                    className={"active"}>
+
+                                </motion.div>
+                            )
+                        }
+                    </button>
                     <button >Docs</button>
                 </div>
             </nav>
@@ -156,6 +197,10 @@ export default function Home() {
                 {
                     openPage === 1 &&
                     <ConfigsPage configs={configs} activeConfig={activeConfig} clientStatus={configStatus} onClientSelect={(i)=>selectClient(i)} setConfigs={setConfigs} loadConfigs={()=>{ void loadConfigs();}}/>
+                }
+                {
+                    openPage === 2 &&
+                    <CatalogPage clientStatus={configStatus}/>
                 }
             </AnimatePresence>
 

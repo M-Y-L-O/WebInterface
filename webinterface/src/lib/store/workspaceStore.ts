@@ -17,7 +17,6 @@ type WorkspaceStore = {
     api: DockviewApi | null;
     layoutsByProjectId: Record<string, DockLayoutJson>;
 
-    /** Last Visualiser / ModelEditor that was active — Properties binds to this. */
     inspectablePanelId: string | null;
     panelContexts: Record<string, PanelInspectContext>;
 
@@ -33,11 +32,9 @@ type WorkspaceStore = {
     setPanelVisualisation: (panelId: string, visualisation: any | null) => void;
     clearPanelContext: (panelId: string) => void;
 
-    /** @deprecated Prefer setPanelSelection(panelId, …) */
     setSelected: (selected: any) => void;
     clearSelected: () => void;
 
-    /** Clear ephemeral UI chrome without wiping persisted layouts. */
     resetChrome: () => void;
 };
 
@@ -152,7 +149,6 @@ export const useWorkspaceStore = create<WorkspaceStore>()(
     ),
 );
 
-/** Active inspect context for Properties. */
 export function useActiveInspectContext(): PanelInspectContext | null {
     return useWorkspaceStore((state) => {
         const id = state.inspectablePanelId;
@@ -161,6 +157,5 @@ export function useActiveInspectContext(): PanelInspectContext | null {
     });
 }
 
-/** Back-compat aliases used across the app. */
 export const useDockviewStore = useWorkspaceStore;
 export const useSelectedStore = useWorkspaceStore;

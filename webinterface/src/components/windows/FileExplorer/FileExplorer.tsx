@@ -2,21 +2,52 @@
 
 import {useEffect, useMemo, useState} from "react";
 import {IDockviewPanelProps} from "dockview-core";
-import {useClientStore, useDockviewStore} from "@/lib/store";
+import {useClientStore, useDockviewStore, useProjectStore} from "@/lib/store";
 import {toast} from "sonner";
 import Style from "./FileExplorer.module.css"
 import {LoadCSV} from "@/lib/windows/Actions";
-import {SlotDescriptor} from "./types";
+import {EditorTemplate, SlotDescriptor} from "./types";
 import {defaultSlots, mergeSlots} from "./helpers";
 import SlotCard from "./SlotCard";
+import TemplatePicker from "./TemplatePicker";
+
+function normalizeTemplates(payload: any): EditorTemplate[] {
+    const raw = payload?.templates ?? payload;
+    if (!raw || typeof raw !== "object") {
+        return [];
+    }
+
+    // Agent returns { templates: { id: { label, description, descriptor } } }
+    if (!Array.isArray(raw)) {
+        return Object.entries(raw).map(([id, value]: [string, any]) => ({
+            id,
+            label: value?.label || id,
+            description: value?.description || "",
+            descriptor: value?.descriptor || value,
+        }));
+    }
+
+    return raw.map((item: any, index: number) => ({
+        id: item?.id || item?.model_name || `template_${index}`,
+        label: item?.label || item?.model_name || `Template ${index + 1}`,
+        description: item?.description || "",
+        descriptor: item?.descriptor || item,
+    }));
+}
 
 export default function FileExplorer(_props: IDockviewPanelProps) {
     const client = useClientStore(state => state.client);
     const api = useDockviewStore(state => state.api);
+    const project = useProjectStore(state => state.project);
+    const projectName = project?.projectData?.name ?? "No project loaded";
+    const csvFile = project?.projectData?.csvFile ?? "";
 
     const [slots, setSlots] = useState<SlotDescriptor[]>(defaultSlots);
     const [loading, setLoading] = useState(false);
     const [openSlot, setOpenSlot] = useState<string | null>(null);
+    const [templatePickerSlot, setTemplatePickerSlot] = useState<SlotDescriptor | null>(null);
+    const [templates, setTemplates] = useState<EditorTemplate[]>([]);
+    const [templatesLoading, setTemplatesLoading] = useState(false);
 
     async function refreshSlots() {
         if (!client) {
@@ -56,6 +87,12 @@ export default function FileExplorer(_props: IDockviewPanelProps) {
         const panelId = `Visualiser-${slot.key}`;
         const existing = api.getPanel(panelId);
         if (existing) {
+            existing.api.updateParameters({
+                filePath: slot.path,
+                fileName: slot.name,
+                visualisation: visualization,
+                modelRevision: Date.now(),
+            });
             existing.api.setActive();
             return;
         }
@@ -80,6 +117,13 @@ export default function FileExplorer(_props: IDockviewPanelProps) {
         const panelId = `ModelEditor-${slot.key}`;
         const existing = api.getPanel(panelId);
         if (existing) {
+            if (descriptor) {
+                existing.api.updateParameters({
+                    filePath: slot.path,
+                    fileName: slot.name,
+                    descriptor,
+                });
+            }
             existing.api.setActive();
             return;
         }
@@ -150,9 +194,34 @@ export default function FileExplorer(_props: IDockviewPanelProps) {
 
         const toastId = toast.loading(`Opening ${slot.name}...`);
         try {
-            const res = await client.visualizeProjectFile(slot.path);
+            let res: any = null;
+
+            // Uploaded models are edited via descriptor.json — prefer that over
+            // re-analysing the binary (which can overwrite a just-saved edit).
+            if (slot.section === "uploaded") {
+                const descRes = await client.getModelDescriptor();
+                if (descRes && !(descRes instanceof Error) && (descRes as any)?.descriptor) {
+                    res = await client.visualizeModel({
+                        descriptor: (descRes as any).descriptor,
+                    });
+                }
+            }
+
+            if (!res || res instanceof Error || (res as any)?.error) {
+                res = await client.visualizeProjectFile(slot.path);
+            }
+
             if (!res || res instanceof Error || (res as any).error) {
                 throw new Error((res as any)?.error || "Failed to visualise file");
+            }
+
+            useProjectStore.getState().setVisualisation(res);
+            const project = useProjectStore.getState().project;
+            if (project && slot.section === "uploaded") {
+                useProjectStore.getState().setProject({
+                    ...project,
+                    modelData: res,
+                });
             }
 
             openVisualiser(slot, res);
@@ -195,15 +264,45 @@ export default function FileExplorer(_props: IDockviewPanelProps) {
         };
     }
 
-    async function createNewPt2(slot: SlotDescriptor) {
+    async function openNewPt2Picker(slot: SlotDescriptor) {
         if (!client) {
             return;
         }
 
-        const toastId = toast.loading("Creating new PT2...");
+        setTemplatePickerSlot(slot);
+        setTemplatesLoading(true);
         try {
-            const descriptor = buildEmptyDescriptor();
-            const fileName = "new_model.pt2";
+            const res = await client.getEditorTemplates();
+            if (!res || res instanceof Error || (res as any).error) {
+                throw new Error((res as any)?.error || "Failed to load templates");
+            }
+            setTemplates(normalizeTemplates(res));
+        } catch (error) {
+            setTemplates([]);
+            // @ts-ignore
+            toast.error("Failed to load templates", {description: error?.message || "Unknown error"});
+        } finally {
+            setTemplatesLoading(false);
+        }
+    }
+
+    async function createNewPt2(slot: SlotDescriptor, template: EditorTemplate | null) {
+        if (!client) {
+            return;
+        }
+
+        setTemplatePickerSlot(null);
+        const toastId = toast.loading(template ? `Creating ${template.label}...` : "Creating new PT2...");
+        try {
+            const descriptor = template
+                ? {
+                    ...template.descriptor,
+                    tensor_contracts: template.descriptor.tensor_contracts || {},
+                    merge_rules: template.descriptor.merge_rules || {},
+                    propagation_rules: template.descriptor.propagation_rules || "deterministic_forward",
+                }
+                : buildEmptyDescriptor();
+            const fileName = `${template?.id || "new_model"}.pt2`;
             const file = new File([JSON.stringify(descriptor, null, 2)], fileName, {type: "application/json"});
 
             const res = await client.LoadModel(file);
@@ -212,8 +311,16 @@ export default function FileExplorer(_props: IDockviewPanelProps) {
             }
 
             await refreshSlots();
-            openModelEditor(slot, descriptor);
-            toast.success("Created new PT2", {id: toastId, duration: 4000});
+
+            // Prefer the agent-canonical descriptor after load
+            let editorDescriptor = descriptor;
+            const saved = await client.getModelDescriptor();
+            if (saved && !(saved instanceof Error) && (saved as any)?.descriptor) {
+                editorDescriptor = (saved as any).descriptor;
+            }
+
+            openModelEditor(slot, editorDescriptor);
+            toast.success(template ? `Created ${template.label}` : "Created new PT2", {id: toastId, duration: 4000});
         } catch (error) {
             // @ts-ignore
             toast.error("Failed to create PT2", {id: toastId, description: error?.message || "Unknown error"});
@@ -239,8 +346,44 @@ export default function FileExplorer(_props: IDockviewPanelProps) {
         }
     }
 
+    async function generateOnnxFromPt2() {
+        if (!client) {
+            return;
+        }
+
+        const toastId = toast.loading("Generating ONNX from PT2...");
+        try {
+            const res = await client.generateOnnxFromPt2();
+            if (!res || res instanceof Error || (res as any).error) {
+                throw new Error((res as any)?.error || "Failed to generate ONNX");
+            }
+
+            if (Array.isArray((res as any).files)) {
+                setSlots(mergeSlots(defaultSlots, (res as any).files));
+            } else {
+                await refreshSlots();
+            }
+            toast.success("ONNX generated from PT2", {id: toastId, duration: 4000});
+        } catch (error) {
+            // @ts-ignore
+            toast.error("Failed to generate ONNX", {id: toastId, description: error?.message || "Unknown error"});
+        }
+    }
+
+    const pt2Exists = useMemo(
+        () => Boolean(slots.find((slot) => slot.key === "uploaded_pt2")?.exists),
+        [slots],
+    );
+
     return (
         <div className={Style.container}>
+            <div className={"flex justify-between items-center gap-[2rem] ml-[1rem]"}>
+                <div>
+                    <h2 className={"text-[var(--light-highlight)]"}>Loaded Project:</h2>
+                    <h1 className={"text-2xl"}>{projectName}</h1>
+                </div>
+                <button className={Style.menuButton} onClick={() => refreshSlots()}><i className={"fa-solid fa-refresh"}></i></button>
+            </div>
             <section className={Style.section}>
                 <div className="border-b border-[var(--light-highlight)]/70 pb-1 ">
                     <h2 className="text-lg font-semibold">Uploaded</h2>
@@ -255,8 +398,10 @@ export default function FileExplorer(_props: IDockviewPanelProps) {
                         openOptimization={openOptimization}
                         downloadSlot={downloadSlot}
                         editPt2={editPt2}
-                        createNewPt2={createNewPt2}
+                        createNewPt2={openNewPt2Picker}
                         uploadSlot={uploadSlot}
+                        generateOnnxFromPt2={generateOnnxFromPt2}
+                        canGenerateOnnx={pt2Exists}
                     />
                 ))}
             </section>
@@ -275,17 +420,34 @@ export default function FileExplorer(_props: IDockviewPanelProps) {
                         openOptimization={openOptimization}
                         downloadSlot={downloadSlot}
                         editPt2={editPt2}
-                        createNewPt2={createNewPt2}
+                        createNewPt2={openNewPt2Picker}
                         uploadSlot={uploadSlot}
                     />
                 ))}
             </section>
-            <section className={Style.section}>
+            <section className={`p-[1rem] w-full`}>
                 <div className="border-b border-[var(--light-highlight)]/70 pb-1 ">
                     <h2 className="text-lg font-semibold">CSV Data</h2>
                 </div>
-                <button onClick={() => LoadCSV(client)}>Load CSV</button>
+                <div className={"bg-[var(--background)]  px-4 py-2 rounded-lg flex justify-between items-center"}>
+                    <h2>{csvFile || "No dataset"}</h2>
+                    <div>
+                        <button className={Style.menuButton} onClick={() => LoadCSV(client)}>Load CSV</button>
+                    </div>
+                </div>
             </section>
+
+            <TemplatePicker
+                open={Boolean(templatePickerSlot)}
+                loading={templatesLoading}
+                templates={templates}
+                onClose={() => setTemplatePickerSlot(null)}
+                onSelect={(template) => {
+                    if (templatePickerSlot) {
+                        createNewPt2(templatePickerSlot, template);
+                    }
+                }}
+            />
         </div>
     );
 }

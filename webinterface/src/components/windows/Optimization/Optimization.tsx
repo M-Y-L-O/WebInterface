@@ -327,6 +327,13 @@ function MutationTimelineSection({events}: {events?: MutationEvent[] | null}) {
 
 export default function Optimization(props: IDockviewPanelProps) {
     const client = useClientStore(state => state.client);
+    const project = useProjectStore(state => state.project);
+    const csv = useProjectStore(state => state.csv);
+    const optimizationRun = useProjectStore(state => state.optimizationRun);
+    const beginOptimizationRun = useProjectStore(state => state.beginOptimizationRun);
+    const appendOptimizationUpdate = useProjectStore(state => state.appendOptimizationUpdate);
+    const setOptimizationResult = useProjectStore(state => state.setOptimizationResult);
+
     const [selectedFeatures, setSelectedFeatures] = useState<string[]>([]);
     const [targetFeature, setTargetFeature] = useState<string>("");
     const [problemType, setProblemType] = useState<string>("regression");
@@ -335,23 +342,37 @@ export default function Optimization(props: IDockviewPanelProps) {
     const [trainingEpochs, setTrainingEpochs] = useState<number>(10);
     const [generations, setGenerations] = useState<number>(5);
 
-    const [view, setView] = useState<ViewMode>("setup");
+    const hasSavedResults = !!(
+        optimizationRun?.result
+        || optimizationRun?.report
+        || optimizationRun?.runError
+        || (optimizationRun?.updates.length ?? 0) > 0
+    );
+
+    const [view, setView] = useState<ViewMode>(hasSavedResults ? "results" : "setup");
     const [running, setRunning] = useState(false);
-    const [updates, setUpdates] = useState<ProgressUpdate[]>([]);
-    const [result, setResult] = useState<OptimizationReport | null>(null);
-    const [report, setReport] = useState<OptimizationReport | null>(null);
     const [reportLoading, setReportLoading] = useState(false);
     const [reportError, setReportError] = useState<string | null>(null);
-    const [runError, setRunError] = useState<string | null>(null);
+
+    const updates = optimizationRun?.updates ?? [];
+    const result = optimizationRun?.result ?? null;
+    const report = optimizationRun?.report ?? null;
+    const runError = optimizationRun?.runError ?? null;
 
     const historyEndRef = useRef<HTMLLIElement | null>(null);
+    const restoredViewRef = useRef(false);
     const panelParams = (props as any).params || {};
-    const project = useProjectStore(state => state.project);
-    const csv = useProjectStore(state => state.csv);
 
     useEffect(() => {
         historyEndRef.current?.scrollIntoView({behavior: "smooth", block: "nearest"});
     }, [updates.length]);
+
+    useEffect(() => {
+        if (!restoredViewRef.current && hasSavedResults) {
+            restoredViewRef.current = true;
+            setView("results");
+        }
+    }, [hasSavedResults]);
 
     if(!project){
         return <div>No project loaded</div>
@@ -392,16 +413,15 @@ export default function Optimization(props: IDockviewPanelProps) {
             const data = await client.getOptimizationReport();
             if(data instanceof Error){
                 setReportError(data.message || "Failed to load optimization report");
-                setReport(null);
             } else if(data?.error){
                 setReportError(String(data.error));
-                setReport(null);
             } else {
-                setReport(data as OptimizationReport);
+                setOptimizationResult({
+                    report: data as OptimizationReport,
+                });
             }
         } catch (e) {
             setReportError(e instanceof Error ? e.message : "Failed to load optimization report");
-            setReport(null);
         } finally {
             setReportLoading(false);
         }
@@ -413,16 +433,13 @@ export default function Optimization(props: IDockviewPanelProps) {
 
         setView("results");
         setRunning(true);
-        setUpdates([]);
-        setResult(null);
-        setReport(null);
         setReportError(null);
-        setRunError(null);
+        beginOptimizationRun();
 
         const endCon = await client.StatusUpdate((event)=>{
             try{
                 const parsed = JSON.parse(event.data) as ProgressUpdate;
-                setUpdates((prev)=>[...prev, parsed]);
+                appendOptimizationUpdate(parsed);
             } catch {
                 // ignore malformed SSE payloads
             }
@@ -440,18 +457,27 @@ export default function Optimization(props: IDockviewPanelProps) {
             }, model);
 
             if(response instanceof Error){
-                setRunError(response.message || "Optimization request failed");
+                setOptimizationResult({
+                    runError: response.message || "Optimization request failed",
+                });
             } else {
                 const payload = response?.result ?? response;
                 if(payload?.error){
-                    setRunError(String(payload.error));
+                    setOptimizationResult({
+                        runError: String(payload.error),
+                    });
                 } else {
-                    setResult(payload as OptimizationReport);
+                    setOptimizationResult({
+                        result: payload as OptimizationReport,
+                        runError: null,
+                    });
                     await loadReport();
                 }
             }
         } catch (e) {
-            setRunError(e instanceof Error ? e.message : "Optimization failed");
+            setOptimizationResult({
+                runError: e instanceof Error ? e.message : "Optimization failed",
+            });
         } finally {
             endCon();
             setRunning(false);
@@ -549,7 +575,17 @@ export default function Optimization(props: IDockviewPanelProps) {
 
     return (
         <div className={Styles.container}>
-            <h1>Optimization</h1>
+            <div className={Styles.headerRow}>
+                <h1>Optimization</h1>
+                <button
+                    type="button"
+                    className={Styles.backButton}
+                    onClick={() => setView("results")}
+                    disabled={!hasSavedResults}
+                >
+                   View Results
+                </button>
+            </div>
             <div className={Styles.container}>
                 <div className={Styles.section}>
                     <h2>Feature select</h2>

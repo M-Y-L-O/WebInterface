@@ -1,18 +1,18 @@
 .container{
     display: flex;
     flex-direction: column;
-    gap: 1rem;
-    padding: 1rem;
-    overflow-y: auto;
-    overflow-x: hidden;
     height: 100%;
     width: 100%;
+    overflow-y: auto;
+    overflow-x: hidden;
+    box-sizing: border-box;
 }
 
 .section{
-    display:flex;
-    gap:1rem;
-    flex-wrap: wrap;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 16rem), 1fr));
+    gap: 1rem;
+    align-items: start;
 }
 
 .container h1{
@@ -25,37 +25,40 @@
     font-size: 0.95rem;
 }
 
-.card{
-    background-color: var(--card-background);
-    padding: 1rem;
-    border-radius: 0.5rem;
-    display: flex;
-    flex-direction: column;
-    gap:0.5rem;
-    min-width: 10rem;
-    height: 100%;
+.sectionTitle{
+    font-family: var(--font-bakbak);
+    font-size: 1.15rem;
+    font-weight: 600;
+    margin: 0;
 }
 
-.cardWide{
-    background-color: var(--card-background);
+.card{
+    background-color: var(--background);
     padding: 1rem;
     border-radius: 0.5rem;
     display: flex;
     flex-direction: column;
     gap: 0.5rem;
-    flex: 1 1 280px;
-    min-width: 260px;
+    min-width: 0;
+}
+
+.cardWide{
+    background-color: var(--background);
+    padding: 1rem;
+    border-radius: 0.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    min-width: 0;
 }
 
 .card h2{
     font-weight: bold;
 }
 
-.list{
-    max-height: 15rem;
-    overflow-y: auto;
+.listPlain{
     padding: 0.5rem;
-    background-color: var(--background);
+    background-color: var(--card-background);
     border-radius: 0.5rem;
 }
 
@@ -63,18 +66,29 @@
     display: flex;
     flex-wrap: wrap;
     gap: 0.4rem;
+    background-color: var(--card-background);
+    padding: 0.5rem 0.75rem;
+    border-top-left-radius: 2.5rem;
+    border-top-right-radius: 2.5rem;
+    width: fit-content;
+    flex-shrink: 0;
 }
 
-.tab,
-.tabActive{
-    border: 1px solid var(--light-highlight);
-    background: transparent;
-    color: var(--text);
-    padding: 0.4rem 0.9rem;
+.tab{
+    padding: 0.8rem 2rem;
     border-radius: 5rem;
+    transition: 0.2s ease-in-out;
     cursor: pointer;
-    font-size: 0.85rem;
-    transition: 0.15s ease-in-out;
+    position: relative;
+}
+
+.tabContainer{
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+    padding: 1rem;
+    background-color: var(--card-background);
+    height: 100%;
 }
 
 .tab:hover{
@@ -83,9 +97,12 @@
 }
 
 .tabActive{
-    background: var(--primary);
-    border-color: var(--primary);
-    color: #111;
+    background-color: var(--primary);
+    padding: 0.8rem 2rem;
+    border-radius: 5rem;
+    z-index: 1;
+    position: absolute;
+    inset: 0;
 }
 
 .statusLine{
@@ -98,6 +115,114 @@
     font-size: 0.85rem;
 }
 
+/* —— Summary layout —— */
+
+.summaryLayout{
+    display: grid;
+    grid-template-columns: repeat(12, 1fr);
+    grid-auto-rows: minmax(min-content, max-content);
+    gap: 1rem;
+    align-items: start;
+}
+
+.metaCard{
+    grid-column: span 12;
+    gap: 2rem;
+    display: flex;
+    flex-direction: row;
+
+}
+
+.metaRow{
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+}
+
+.metaLabel{
+    color: var(--text-light);
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+}
+
+.metaValue{
+    font-size: 0.95rem;
+    word-break: break-word;
+}
+
+.columnsPanel,
+.encodingPanel{
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    min-width: 0;
+    width: 100%;
+}
+
+.columnsPanel{
+    grid-column: span 6;
+}
+
+.encodingPanel{
+    grid-column: span 6;
+}
+
+.cardGrid{
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+    align-items: start;
+}
+
+.spanAll{
+    grid-column: 1 / -1;
+}
+
+.summaryStack{
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+    padding: 1rem;
+    background-color: var(--card-background);
+}
+
+.summaryStack > div{
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+@media (max-width: 1100px){
+    .metaCard,
+    .columnsPanel,
+    .encodingPanel{
+        grid-column: span 6;
+    }
+}
+
+@media (max-width: 700px){
+    .metaCard,
+    .columnsPanel,
+    .encodingPanel{
+        grid-column: 1 / -1;
+    }
+
+    .cardGrid{
+        grid-template-columns: 1fr;
+    }
+
+    .tab{
+        padding: 0.55rem 1.1rem;
+    }
+}
+
+@media (max-width: 500px){
+    .columnLists{
+        grid-template-columns: 1fr;
+    }
+}
+
 .chartSection{
     display: flex;
     flex-direction: column;
@@ -105,6 +230,7 @@
     background: var(--card-background);
     padding: 1rem;
     border-radius: 0.5rem;
+    min-width: 0;
 }
 
 .chartHeader{
@@ -112,12 +238,11 @@
     align-items: center;
     justify-content: space-between;
     gap: 1rem;
-    flex-wrap: wrap;
 }
 
 .chartGrid{
-    display: flex;
-    flex-wrap: wrap;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 16rem), 1fr));
     gap: 1rem;
 }
 
@@ -129,12 +254,10 @@
     display: flex;
     flex-direction: column;
     gap: 0.4rem;
-    min-width: 240px;
-    flex: 1 1 280px;
+    min-width: 0;
 }
 
 .chartBlockWide{
-    flex: 1 1 100%;
     overflow-x: auto;
 }
 
@@ -257,6 +380,7 @@
     padding: 0.4rem 1rem;
     cursor: pointer;
     font-size: 0.85rem;
+    text-wrap: nowrap;
 }
 
 .actionButton:disabled{
@@ -267,8 +391,8 @@
 .targetRow{
     display: flex;
     gap: 0.75rem;
-    flex-wrap: wrap;
     align-items: center;
+    width: 100%;
 }
 
 .corrList{
@@ -277,11 +401,12 @@
     gap: 0.35rem;
     max-height: 18rem;
     overflow-y: auto;
+    overflow-x: hidden;
 }
 
 .corrRow{
     display: grid;
-    grid-template-columns: 1fr auto auto;
+    grid-template-columns: minmax(0, 1fr) auto auto;
     gap: 0.75rem;
     align-items: center;
     padding: 0.35rem 0.5rem;
@@ -307,9 +432,10 @@
 }
 
 .statsGrid{
-    display: flex;
-    flex-wrap: wrap;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 14rem), 1fr));
     gap: 1rem;
+    align-items: start;
 }
 
 .statGrid{
@@ -323,6 +449,7 @@
     display: flex;
     flex-direction: column;
     gap: 0.1rem;
+    min-width: 0;
 }
 
 .statLabel{

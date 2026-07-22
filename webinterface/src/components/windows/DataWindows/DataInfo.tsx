@@ -1,6 +1,6 @@
 "use client";
 
-import {useEffect, useMemo, useState} from "react";
+import React, {useEffect, useMemo, useState} from "react";
 import {useClientStore, useProjectStore} from "@/lib/store";
 import type {
     AdvancedAnalysisResponse,
@@ -17,6 +17,8 @@ import {
     ScatterChart,
 } from "./Charts";
 import Style from "./Data.module.css";
+import {motion, AnimatePresence} from "framer-motion";
+import Dropdown from "@/components/structural/Dropdown";
 
 type TabId = "summary" | "charts" | "correlation" | "quality" | "target";
 
@@ -160,10 +162,24 @@ export default function DataInfo() {
                     <button
                         key={id}
                         type="button"
-                        className={tab === id ? Style.tabActive : Style.tab}
+                        className={Style.tab}
                         onClick={() => setTab(id)}
                     >
-                        {label}
+                        <span className={"z-10 relative"} style={tab===id ? {color:"var(--card-background)"}:{}}>{label}</span>
+                        {
+                            tab === id &&
+                            <motion.div
+                                layoutId={"active Pill"}
+                                transition={{
+                                    type:"spring",
+                                    stiffness: 300,
+                                    damping: 30,
+                                    duration: 0.15,
+                                }}
+                                className={Style.tabActive}>
+
+                            </motion.div>
+                        }
                     </button>
                 ))}
             </div>
@@ -172,107 +188,118 @@ export default function DataInfo() {
             {error && <div className={Style.errorLine}>{error}</div>}
 
             {tab === "summary" && (
-                <>
-                    <div className={"flex gap-[1rem]"}>
-                        <div className={"flex flex-col gap-4"}>
-                    <h1>Summary</h1>
-                    <div className={Style.section}>
-                        <div className={Style.card}>
-                            <span>File: {currentProject?.csvFile ?? "—"}</span>
-                            <span>Columns: {results.summary?.columns}</span>
-                            <span>Rows: {results.summary?.rows}</span>
-                        </div>
-                        <div className={Style.section}>
-                            <div className={Style.card}>
-                                <h2>Numerical Columns</h2>
-                                <div className={Style.list}>
-                                    {results.results?.numerical_columns?.length > 0
-                                        ? results.results.numerical_columns.map((column: string, index: number) => (
-                                            <div key={index}>{column}</div>
-                                        ))
-                                        : <div>No numerical columns</div>}
+                <div className={Style.summaryStack}>
+                    <div className={"w-full"}>
+                        <h1>Summary</h1>
+                        <div className={Style.summaryLayout}>
+                            <div className={`${Style.card} ${Style.metaCard}`}>
+                                <div className={Style.metaRow}>
+                                    <span className={Style.metaLabel}>File</span>
+                                    <span className={Style.metaValue}>{currentProject?.projectData.csvFile ?? "—"}</span>
+                                </div>
+                                <div className={Style.metaRow}>
+                                    <span className={Style.metaLabel}>Columns</span>
+                                    <span className={Style.metaValue}>{results.summary?.columns}</span>
+                                </div>
+                                <div className={Style.metaRow}>
+                                    <span className={Style.metaLabel}>Rows</span>
+                                    <span className={Style.metaValue}>{results.summary?.rows}</span>
                                 </div>
                             </div>
-                            <div className={Style.card}>
-                                <h2>Categorical Columns</h2>
-                                <div className={Style.list}>
-                                    {results.results?.categorical_columns?.length > 0
-                                        ? results.results.categorical_columns.map((column: string, index: number) => (
-                                            <div key={index}>{column}</div>
-                                        ))
-                                        : <div>No categorical columns</div>}
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    </div>
-                        {encoding && (
-                            <div className={"flex flex-col gap-4"}>
-                                <h1>Encoding</h1>
-                                <div className={Style.section}>
-                                    <div className={Style.card}>
-                                        <span>
-                                            OneHot encoding:{" "}
-                                            <span style={{
-                                                color: encoding.overall_recommendation === "Safe"
-                                                    ? "var(--success)"
-                                                    : encoding.overall_recommendation?.includes("caution") || encoding.overall_recommendation === "Caution"
-                                                        ? "var(--warning)"
-                                                        : "var(--error)",
-                                            }}>
-                                                {encoding.overall_recommendation}
-                                            </span>
-                                        </span>
-                                        <span>
-                                            Memory estimation: {encoding.memory_estimate?.estimated_memory_mb}mb
-                                            (initial: {encoding.memory_estimate?.current_memory_mb}mb, increase of{" "}
-                                            {encoding.memory_estimate?.memoryIncreaseFactor}x)
-                                        </span>
-                                        <span>Estimated new columns: {encoding.columns_estimate?.new_columns_added}</span>
-                                    </div>
-                                    <div className={Style.card}>
-                                        <h2 style={{color: "var(--warning)"}}>Warnings</h2>
-                                        <div className={Style.list}>
-                                            {encoding.warnings?.length > 0
-                                                ? encoding.warnings.map((warning: string, index: number) => (
-                                                    <div key={index}>{warning}</div>
-                                                ))
-                                                : <div>No warnings</div>}
-                                        </div>
-                                    </div>
-                                    <div className={Style.card}>
-                                        <h2 style={{color: "var(--success)"}}>Recommendations</h2>
-                                        <div className={Style.list}>
-                                            {encoding.recommendations?.length > 0
-                                                ? encoding.recommendations.map((recommendation: string, index: number) => (
-                                                    <div key={index}>{recommendation}</div>
-                                                ))
-                                                : <div>No recommendations</div>}
-                                        </div>
-                                    </div>
-                                    <div className={Style.card}>
-                                        <h2>High cardinality columns</h2>
-                                        <div className={Style.list}>
-                                            {encoding.high_cardinality_columns?.length > 0
-                                                ? encoding.high_cardinality_columns.map((column: {column?: string; unique_count?: number; severity?: string} | string, index: number) => (
-                                                    <div key={index}>
-                                                        {typeof column === "string"
-                                                            ? column
-                                                            : `${column.column} (${column.unique_count} unique · ${column.severity})`}
-                                                    </div>
-                                                ))
-                                                : <div>No high cardinality columns</div>}
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        )}
-                    </div>
 
+                            <div className={Style.columnsPanel}>
+                                <h2 className={Style.sectionTitle}>Columns</h2>
+                                <div className={Style.cardGrid}>
+                                    <div className={`${Style.card} ${Style.spanAll}`}>
+                                        <h2>Numerical</h2>
+                                        <div className={Style.listPlain}>
+                                            {results.results?.numerical_columns?.length > 0
+                                                ? results.results.numerical_columns.map((column: string, index: number) => (
+                                                    <div key={index}>{column}</div>
+                                                ))
+                                                : <div>No numerical columns</div>}
+                                        </div>
+                                    </div>
+                                    <div className={`${Style.card} ${Style.spanAll}`}>
+                                        <h2>Categorical</h2>
+                                        <div className={Style.listPlain}>
+                                            {results.results?.categorical_columns?.length > 0
+                                                ? results.results.categorical_columns.map((column: string, index: number) => (
+                                                    <div key={index}>{column}</div>
+                                                ))
+                                                : <div>No categorical columns</div>}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {encoding && (
+                                <div className={Style.encodingPanel}>
+                                    <h2 className={Style.sectionTitle}>Encoding</h2>
+                                    <div className={Style.cardGrid}>
+                                        <div className={`${Style.card} ${Style.spanAll}`}>
+                                            <span>
+                                                OneHot encoding:{" "}
+                                                <span style={{
+                                                    color: encoding.overall_recommendation === "Safe"
+                                                        ? "var(--success)"
+                                                        : encoding.overall_recommendation?.includes("caution") || encoding.overall_recommendation === "Caution"
+                                                            ? "var(--warning)"
+                                                            : "var(--error)",
+                                                }}>
+                                                    {encoding.overall_recommendation}
+                                                </span>
+                                            </span>
+                                            <span>
+                                                Memory estimation: {encoding.memory_estimate?.estimated_memory_mb}mb
+                                                (initial: {encoding.memory_estimate?.current_memory_mb}mb, increase of{" "}
+                                                {encoding.memory_estimate?.memoryIncreaseFactor}x)
+                                            </span>
+                                            <span>Estimated new columns: {encoding.columns_estimate?.new_columns_added}</span>
+                                        </div>
+                                        <div className={Style.card}>
+                                            <h2 style={{color: "var(--warning)"}}>Warnings</h2>
+                                            <div className={Style.listPlain}>
+                                                {encoding.warnings?.length > 0
+                                                    ? encoding.warnings.map((warning: string, index: number) => (
+                                                        <div key={index}>{warning}</div>
+                                                    ))
+                                                    : <div>No warnings</div>}
+                                            </div>
+                                        </div>
+                                        <div className={Style.card}>
+                                            <h2 style={{color: "var(--success)"}}>Recommendations</h2>
+                                            <div className={Style.listPlain}>
+                                                {encoding.recommendations?.length > 0
+                                                    ? encoding.recommendations.map((recommendation: string, index: number) => (
+                                                        <div key={index}>{recommendation}</div>
+                                                    ))
+                                                    : <div>No recommendations</div>}
+                                            </div>
+                                        </div>
+                                        <div className={`${Style.card} ${Style.spanAll}`}>
+                                            <h2>High cardinality</h2>
+                                            <div className={Style.listPlain}>
+                                                {encoding.high_cardinality_columns?.length > 0
+                                                    ? encoding.high_cardinality_columns.map((column: {column?: string; unique_count?: number; severity?: string} | string, index: number) => (
+                                                        <div key={index}>
+                                                            {typeof column === "string"
+                                                                ? column
+                                                                : `${column.column} (${column.unique_count} unique · ${column.severity})`}
+                                                        </div>
+                                                    ))
+                                                    : <div>No high cardinality columns</div>}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    </div>
 
                     {Object.keys(numStats).length > 0 && (
-                        <>
-                            <h1>Descriptive statistics</h1>
+                        <div>
+                            <h2 className={Style.sectionTitle}>Descriptive statistics</h2>
                             <div className={Style.statsGrid}>
                                 {Object.entries(numStats).slice(0, 8).map(([col, stats]) => (
                                     <div key={col} className={Style.card}>
@@ -288,23 +315,22 @@ export default function DataInfo() {
                                     </div>
                                 ))}
                             </div>
-                        </>
+                        </div>
                     )}
-                </>
+                </div>
             )}
 
             {tab === "charts" && (
-                <>
+                <div className={Style.tabContainer}>
                     <h1>Distributions</h1>
                     {!chartData && !loading && <div className={Style.emptyChart}>Chart data unavailable — ensure a CSV is loaded on the agent.</div>}
 
                     {histKeys.length > 0 && (
                         <div className={Style.chartSection}>
                             <div className={Style.chartHeader}>
-                                <h2>Histograms</h2>
-                                <select className={Style.select} value={histCol} onChange={e => setHistCol(e.target.value)}>
-                                    {histKeys.map(k => <option key={k} value={k}>{k}</option>)}
-                                </select>
+                                <h2 className={"w-full"}>Histograms</h2>
+                                <Dropdown defaultValue={histKeys[0]} onChange={e => setHistCol(e)} options={histKeys}>
+                                </Dropdown>
                             </div>
                             {chartData?.histograms[histCol] && <HistogramChart data={chartData.histograms[histCol]} />}
                         </div>
@@ -313,10 +339,10 @@ export default function DataInfo() {
                     {barKeys.length > 0 && (
                         <div className={Style.chartSection}>
                             <div className={Style.chartHeader}>
-                                <h2>Category frequencies</h2>
-                                <select className={Style.select} value={barCol} onChange={e => setBarCol(e.target.value)}>
-                                    {barKeys.map(k => <option key={k} value={k}>{k}</option>)}
-                                </select>
+                                <h2 className={"w-full"}>Category frequencies</h2>
+                                <Dropdown  defaultValue={barCol[0]} onChange={e => setBarCol(e)} options={barKeys}>
+
+                                </Dropdown>
                             </div>
                             {chartData?.bar_charts[barCol] && <CategoryBarChart data={chartData.bar_charts[barCol]} />}
                         </div>
@@ -325,10 +351,9 @@ export default function DataInfo() {
                     {boxKeys.length > 0 && (
                         <div className={Style.chartSection}>
                             <div className={Style.chartHeader}>
-                                <h2>Box plots</h2>
-                                <select className={Style.select} value={boxCol} onChange={e => setBoxCol(e.target.value)}>
-                                    {boxKeys.map(k => <option key={k} value={k}>{k}</option>)}
-                                </select>
+                                <h2 className={"w-full"}>Box plots</h2>
+                                <Dropdown defaultValue={boxCol} onChange={e => setBoxCol(e)} options={boxKeys}>
+                                </Dropdown>
                             </div>
                             {chartData?.box_plots[boxCol] && <BoxPlotChart data={chartData.box_plots[boxCol]} />}
                         </div>
@@ -336,7 +361,7 @@ export default function DataInfo() {
 
                     {(chartData?.scatter_plots?.length ?? 0) > 0 && (
                         <div className={Style.chartSection}>
-                            <h2>Top correlated pairs</h2>
+                            <h2 className={"w-full"}>Top correlated pairs</h2>
                             <div className={Style.chartGrid}>
                                 {chartData!.scatter_plots.map((s, i) => (
                                     <ScatterChart key={i} data={s} />
@@ -350,11 +375,11 @@ export default function DataInfo() {
                             <HeatmapChart data={chartData.correlation_heatmap} />
                         </div>
                     )}
-                </>
+                </div>
             )}
 
             {tab === "correlation" && (
-                <>
+                <div className={Style.tabContainer}>
                     <h1>Correlation analysis</h1>
                     <div className={Style.section}>
                         <div className={Style.cardWide}>
@@ -381,11 +406,11 @@ export default function DataInfo() {
                             <HeatmapChart data={chartData.correlation_heatmap} />
                         </div>
                     )}
-                </>
+                </div>
             )}
 
             {tab === "quality" && (
-                <>
+                <div className={Style.tabContainer}>
                     <h1>Data quality</h1>
                     <div className={Style.section}>
                         <div className={Style.card}>
@@ -402,7 +427,7 @@ export default function DataInfo() {
                     <div className={Style.section}>
                         <div className={Style.cardWide}>
                             <h2>Issues</h2>
-                            <div className={Style.list}>
+                            <div className={Style.listPlain}>
                                 {quality?.issues?.length
                                     ? quality.issues.map((issue, i) => (
                                         <div key={i} className={Style.issueRow} data-severity={issue.severity}>
@@ -447,20 +472,19 @@ export default function DataInfo() {
                             </div>
                         </>
                     )}
-                </>
+                </div>
             )}
 
             {tab === "target" && (
-                <>
+                <div className={Style.tabContainer}>
                     <h1>Target analysis</h1>
                     <div className={Style.targetRow}>
-                        <select
-                            className={Style.select}
-                            value={targetColumn}
-                            onChange={e => setTargetColumn(e.target.value)}
+                        <Dropdown
+                            defaultValue={allColumns[0]}
+                            onChange={e => setTargetColumn(e)}
+                            options={allColumns}
                         >
-                            {allColumns.map(c => <option key={c} value={c}>{c}</option>)}
-                        </select>
+                        </Dropdown>
                         <button type="button" className={Style.actionButton} onClick={runTargetAnalysis} disabled={!targetColumn || loading}>
                             Analyze target
                         </button>
@@ -527,7 +551,7 @@ export default function DataInfo() {
                             {(target.preprocessing_suggestions?.length ?? 0) > 0 && (
                                 <div className={Style.card}>
                                     <h2 style={{color: "var(--success)"}}>Suggestions</h2>
-                                    <div className={Style.list}>
+                                    <div className={Style.listPlain}>
                                         {target.preprocessing_suggestions!.map((s, i) => (
                                             <div key={i}>{s}</div>
                                         ))}
@@ -536,7 +560,7 @@ export default function DataInfo() {
                             )}
                         </div>
                     )}
-                </>
+                </div>
             )}
         </div>
     );

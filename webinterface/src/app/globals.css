@@ -23,3 +23,7 @@ body {
   color: var(--text);
   font-family: var(--font-josefin-sans);
 }
+
+.react-flow__attribution{
+  display: none;
+}

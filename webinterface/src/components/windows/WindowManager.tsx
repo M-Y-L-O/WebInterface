@@ -2,6 +2,7 @@
 import {DockviewReact,  DockviewReadyEvent, DockviewTheme} from "dockview-react";
 import {getProjectId, useWorkspaceStore} from "@/lib/store";
 import {components} from "@/lib/windows/windowTypes";
+import {consumePendingPanel} from "@/lib/windows/pendingPanel";
 import {useCallback, useEffect, useRef} from "react";
 import "dockview-react/dist/styles/dockview.css"
 import Styles from "./WindowTheme.module.css"
@@ -38,6 +39,27 @@ function tryRestoreLayout(api: DockviewReadyEvent["api"], layout: DockLayoutJson
     }
 }
 
+function applyPendingPanel(api: DockviewReadyEvent["api"]) {
+    const pending = consumePendingPanel();
+    if (!pending) return;
+
+    const existing = api.getPanel(pending.id);
+    if (existing) {
+        if (pending.params) {
+            existing.api.updateParameters(pending.params);
+        }
+        existing.api.setActive();
+        return;
+    }
+
+    api.addPanel({
+        id: pending.id,
+        component: pending.component,
+        title: pending.title,
+        params: pending.params,
+    } as any);
+}
+
 export default function WindowManager(){
     const setApi = useWorkspaceStore(state => state.setApi);
     const setLayout = useWorkspaceStore(state => state.setLayout);
@@ -60,6 +82,8 @@ export default function WindowManager(){
         if (!restored) {
             applyDefaultLayout(event.api);
         }
+
+        applyPendingPanel(event.api);
 
         layoutDisposableRef.current = event.api.onDidLayoutChange(()=>{
             setLayout(event.api.toJSON(), projectId);

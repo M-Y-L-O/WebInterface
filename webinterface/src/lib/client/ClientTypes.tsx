@@ -1,4 +1,3 @@
-'use client';
 
 export enum ClientType {
     LOCAL = 'LOCAL',
@@ -9,10 +8,15 @@ export interface ClientConfig {
     type: ClientType;
     name: string;
     address: string;
-    cloudEndpoint?: string; // For cloud, provide the managed API endpoint
+    cloudEndpoint?: string;
     apiKey: string;
-    dbId?:string;
+    dbId?: string;
+    sessionId?: string;
 }
+
+export const CLOUD_PROXY_BASE = "/api/cloud/proxy";
+
+export const CLOUD_CONFIG_HEADER = "x-mylo-config-id";
 
 export interface OptimizationRequest {
     inputFeatures: string[];
@@ -165,6 +169,7 @@ export enum EndPoints{
     projectFiles = "/projectFiles",
     visualizeProjectFile = "/visualizeProjectFile",
     downloadOptimized = "/download-optimized",
+    generateOnnxFromPt2 = "/generateOnnxFromPt2",
     newProject = "/newProject",
     exportProject="/exportProject",
     getProject = "/getProject",

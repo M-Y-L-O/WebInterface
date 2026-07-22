@@ -16,7 +16,13 @@ const nextConfig: NextConfig = {
         hostname: "i.imgur.com",
       },
     ],
-  }
+  },
+  // Cloud project .mylo uploads go through server actions as FormData
+  experimental: {
+    serverActions: {
+      bodySizeLimit: "100mb",
+    },
+  },
 };
 
 export default nextConfig;

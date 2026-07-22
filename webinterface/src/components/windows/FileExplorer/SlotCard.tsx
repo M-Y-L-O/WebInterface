@@ -16,6 +16,8 @@ interface SlotCardProps {
     editPt2: (slot: SlotDescriptor) => void;
     createNewPt2: (slot: SlotDescriptor) => void;
     uploadSlot: (slot: SlotDescriptor) => void;
+    generateOnnxFromPt2?: () => void;
+    canGenerateOnnx?: boolean;
 }
 
 export default function SlotCard({
@@ -28,6 +30,8 @@ export default function SlotCard({
     editPt2,
     createNewPt2,
     uploadSlot,
+    generateOnnxFromPt2,
+    canGenerateOnnx = false,
 }: SlotCardProps) {
     const isOpen = openSlot === slot.key;
     const hasContent = slot.exists;
@@ -108,6 +112,16 @@ export default function SlotCard({
                                 onClick={() => uploadSlot(slot)}
                             >
                                 {hasContent ? "Replace" : "Upload"} <i className="fa-solid fa-upload"/>
+                            </button>
+                        )}
+                        {slot.key === "uploaded_onnx" && generateOnnxFromPt2 && (
+                            <button
+                                className={Style.menuButton}
+                                onClick={() => generateOnnxFromPt2()}
+                                disabled={!canGenerateOnnx}
+                                title={canGenerateOnnx ? "Convert uploaded PT2 to ONNX" : "Upload a PT2 first"}
+                            >
+                                Generate <i className="fa-solid fa-gears"/>
                             </button>
                         )}
                     </div>

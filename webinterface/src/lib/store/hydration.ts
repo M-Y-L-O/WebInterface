@@ -13,7 +13,6 @@ function persistApi(store: { persist?: PersistApi }): PersistApi | null {
     return store.persist ?? null;
 }
 
-/** True once all persisted stores have rehydrated (always false during SSR). */
 export function storesHaveHydrated(): boolean {
     if (typeof window === "undefined") return false;
 
@@ -29,7 +28,6 @@ export function storesHaveHydrated(): boolean {
     return apis.every((api) => api!.hasHydrated());
 }
 
-/** Subscribe to finish of all store rehydrations. Returns unsubscribe. */
 export function onStoresHydrated(callback: () => void): () => void {
     if (typeof window === "undefined") return () => {};
 
