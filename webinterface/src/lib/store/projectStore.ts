@@ -10,10 +10,14 @@ type ProjectStore = {
     csv: any | null;
     visualisation: any | null;
     optimizationRun: OptimizationRunState | null;
+    /** Live in-editor descriptor draft — reflects unsaved modifications. */
+    descriptorDraft: any | null;
 
     setProject: (project: any | null) => void;
     setCsv: (csv: any | null) => void;
     setVisualisation: (visualisation: any | null) => void;
+    setDescriptorDraft: (descriptor: any | null) => void;
+    clearDescriptorDraft: () => void;
 
     hydrateFromProject: (project: any | null) => void;
     clearProject: () => void;
@@ -72,12 +76,17 @@ export const useProjectStore = create<ProjectStore>()(
             csv: null,
             visualisation: null,
             optimizationRun: null,
+            descriptorDraft: null,
 
             setProject: (project) => set({ project }),
 
             setCsv: (csv) => set({ csv }),
 
             setVisualisation: (visualisation) => set({ visualisation }),
+
+            setDescriptorDraft: (descriptorDraft) => set({ descriptorDraft }),
+
+            clearDescriptorDraft: () => set({ descriptorDraft: null }),
 
             hydrateFromProject: (raw) => {
                 if (!raw) {
@@ -95,8 +104,9 @@ export const useProjectStore = create<ProjectStore>()(
                     project,
                     visualisation: project?.modelData ?? null,
                     csv: project?.csvData ?? null,
-                    // Fresh project load — drop previous session run.
+                    // Fresh project load — drop previous session run and descriptor draft.
                     optimizationRun: null,
+                    descriptorDraft: null,
                 });
             },
 
@@ -106,6 +116,7 @@ export const useProjectStore = create<ProjectStore>()(
                     csv: null,
                     visualisation: null,
                     optimizationRun: null,
+                    descriptorDraft: null,
                 }),
 
             clearVisualisation: () => set({ visualisation: null }),
@@ -154,6 +165,7 @@ export const useProjectStore = create<ProjectStore>()(
                 csv: state.csv,
                 visualisation: state.visualisation,
                 optimizationRun: state.optimizationRun,
+                // descriptorDraft is intentionally NOT persisted — it's ephemeral UI state.
             }),
             onRehydrateStorage: () => (state) => {
                 if (!state?.project) return;

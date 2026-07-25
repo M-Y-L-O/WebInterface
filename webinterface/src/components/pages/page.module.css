@@ -321,11 +321,55 @@
     margin-bottom: 1rem;
 }
 
-.headerButton{
-    background-color: var(--primary);
-    color: var(--card-background);
-    padding: 0.5rem 1.25rem;
+.section .searchBar{
+    background-color: var(--card-background);
+    padding: 0.5rem 1rem;
+    width: 22rem;
+    border-radius: 5rem;
+}
+
+
+.headerDropdown{
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    background-color: var(--background);
+    padding-top: 0.5rem;
     border-radius: 0.5rem;
+    position: absolute;
+    right: 0;
+    overflow: hidden;
+    transition: 0.2s ease-in-out;
+}
+
+.headerDropdown button{
+    color: var(--text);
+    width: 100%;
+    padding: 0.5rem 1.25rem;
+    border-bottom: 1px solid var(--light-highlight);
+
+    transition: 0.2s ease-in-out;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    text-wrap: nowrap;
+}
+
+.headerDropdown button:hover{
+    color: var(--primary);
+}
+
+.headerDropdown button:disabled{
+    opacity: 0.5;
+    color: var(--light-highlight)
+}
+
+.headerButton{
+
+    background-color: var(--card-background);
+    color: var(--primary);
+    padding: 0.5rem 1.25rem;
+    border-radius: 5rem;
     border: 1px solid var(--primary);
     transition: 0.2s ease-in-out;
     display: flex;
@@ -335,8 +379,8 @@
 }
 
 .headerButton:hover:not(:disabled){
-    background-color: var(--card-background);
-    color: var(--primary);
+    background-color: var(--primary);
+    color: var(--card-background);
 }
 
 .headerButton:disabled{
@@ -348,8 +392,8 @@
     padding: 0.45rem 1rem;
     border-radius: 2rem;
     border: 1px solid var(--light-highlight);
+    background-color: var(--card-background);
     color: var(--text-light);
-    background: transparent;
     transition: 0.15s ease-in-out;
     cursor: pointer;
 }

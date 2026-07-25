@@ -177,19 +177,7 @@ export default function ConfigsPage({configs, activeConfig, clientStatus, onClie
                                     <h2>{config.type.toString()}</h2>
                                 </div>
                                 <div className={"flex justify-between items-center gap-2 flex-col"}>
-                                    {config.type === ClientType.CLOUD && (
-                                        <button
-                                            className={Style.editButton}
-                                            title="Restart cloud session"
-                                            disabled={isRestarting}
-                                            onClick={(e)=>{
-                                                e.stopPropagation();
-                                                void restartCloud(i);
-                                            }}
-                                        >
-                                            <i className={`fa-solid fa-rotate-right ${isRestarting ? "fa-spin" : ""}`}/>
-                                        </button>
-                                    )}
+
                                     <button className={Style.editButton} onClick={(e)=>{
                                         e.stopPropagation();
 
@@ -233,6 +221,20 @@ export default function ConfigsPage({configs, activeConfig, clientStatus, onClie
                                     ? "Cloud address and API key are managed automatically. Use the restart button on the card to spin up a fresh container."
                                     : "Creates a Docker agent via the orchestrator. No address or API key needed."}
                             </p>
+                        )}
+                        {isCloud && editing && (
+                            <button
+                                className={Style.closeButton}
+                                title="Restart cloud session"
+
+                                onClick={(e)=>{
+                                    e.stopPropagation();
+                                    void restartCloud(editingIndex!);
+                                    setShowForm(false);
+                                }}
+                            >
+                               Restart Client <i className={`fa-solid fa-rotate-right`}/>
+                            </button>
                         )}
                         <button className={Style.mainButton} disabled={busy} onClick={editing ? updateClient : createClient}>
                             {busy ? "Working…" : editing ? "Save" : (isCloud ? "Start cloud session" : "Create")}

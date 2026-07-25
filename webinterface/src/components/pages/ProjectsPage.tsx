@@ -36,6 +36,7 @@ export default function ProjectsPage({activeConfig, clientStatus, onStatusClick}
 
     async function loadActiveProject(client:any){
         const project = await client.getProject();
+        console.log("Project", project);
         if(project && project.projectData){
             setActiveProject(project);
         } else {
@@ -177,7 +178,7 @@ export default function ProjectsPage({activeConfig, clientStatus, onStatusClick}
                 </div>
                 <h1 className={Style.title}>Loaded Project:</h1>
                 {
-                    activeProject ?
+                    activeProject && activeProject.projectData.name ?
                         <div className={`${Style.mainInfo} ml-[1rem]`} onClick={()=>{loadProject(-1)}}>
                             <div className={"flex flex-col items-start mb-[1rem]"}>
                                 <h1>{activeProject.projectData.name}</h1>

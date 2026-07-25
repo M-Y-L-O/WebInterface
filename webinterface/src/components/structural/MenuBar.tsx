@@ -93,6 +93,10 @@ export default function MenuBar(){
                     label:"Properties",
                     onClick:()=>addWindow("Properties")
                 },
+                {
+                    label:"AI Assistant",
+                    onClick:()=>addWindow("Chat", "AI Assistant")
+                },
             ]
         },
     ]

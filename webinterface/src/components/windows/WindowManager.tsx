@@ -16,7 +16,7 @@ const Theme:DockviewTheme = {
 }
 
 function applyDefaultLayout(api: DockviewReadyEvent["api"]) {
-    api.addPanel({id: 'FileExplorer', component: 'FileExplorer', title: 'File Explorer'})
+    api.addPanel({id: 'FileExplorer', component: 'FileExplorer', title: 'Project Explorer'})
     api.addPanel({
         id: 'Properties',
         component: 'Properties',

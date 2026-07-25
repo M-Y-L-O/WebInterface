@@ -18,7 +18,9 @@ import {
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 
+import { onModelEdited } from "@/lib/ai/modelSync";
 import { useClientStore } from "@/lib/store";
+import { useProjectStore } from "@/lib/store";
 import { useInspectablePanel } from "@/lib/windows/useInspectablePanel";
 import { layoutElements } from "@/lib/windows/visualiserHelpers";
 import { publishSavedModelGraph } from "@/lib/windows/Actions";
@@ -111,6 +113,23 @@ export default function ModelEditorInner(props: IDockviewPanelProps) {
     nodesRef.current = nodes;
     /** Positions for nodes about to be added (e.g. context-menu click). Consumed by renderGraph. */
     const pendingPositionsRef = useRef<Record<string, { x: number; y: number }>>({});
+
+    // ---------------------------------------------------------------------------
+    // Keep the global descriptorDraft in sync with every local descriptor change
+    // so the AI agent always sees the current unsaved state.
+    // ---------------------------------------------------------------------------
+    const setDescriptorDraft = useProjectStore((s) => s.setDescriptorDraft);
+    const clearDescriptorDraft = useProjectStore((s) => s.clearDescriptorDraft);
+
+    useEffect(() => {
+        setDescriptorDraft(descriptor);
+    }, [descriptor, setDescriptorDraft]);
+
+    // Clear draft when the editor panel is unmounted.
+    useEffect(() => {
+        return () => { clearDescriptorDraft(); };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     // Context menu state
     const [contextMenu, setContextMenu] = useState<{
@@ -296,6 +315,19 @@ export default function ModelEditorInner(props: IDockviewPanelProps) {
         loadInitial();
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [client]);
+
+    // Keep the canvas in sync when the AI assistant mutates the model via tools.
+    useEffect(() => {
+        return onModelEdited((detail) => {
+            if (detail.descriptor) setDescriptor(detail.descriptor);
+            if (detail.shapes) setShapes(detail.shapes as Record<string, any>);
+            if (detail.graph) {
+                void renderGraph(detail.graph);
+            }
+            setCanUndo(true);
+        });
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [catalog, viewMode, expandedNodes]);
 
     // ---------------------------------------------------------------------------
     // Typed error dispatch
@@ -703,15 +735,17 @@ export default function ModelEditorInner(props: IDockviewPanelProps) {
             return;
         }
 
-        // Empty RF selection — ignore here. Graph rebuilds (live preview) briefly
-        // report no selection; pane click clears explicitly via clearCanvasSelection.
     }
 
     function clearCanvasSelection() {
         setSelectedNodeId(null);
         setSelectedEdge(null);
         setSelected(null);
+
+        // @ts-ignore
         setNodes((nds) => nds.map((n) => ({ ...n, selected: false })));
+
+        // @ts-ignore
         setEdges((eds) => eds.map((e) => ({ ...e, selected: false })));
     }
 
