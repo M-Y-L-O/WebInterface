@@ -20,7 +20,6 @@ async function proxy(request: NextRequest, pathSegments: string[] | undefined) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Header preferred; query used for EventSource (cannot set custom headers).
     const configId =
         request.headers.get(CLOUD_CONFIG_HEADER) ||
         request.nextUrl.searchParams.get("configId");
@@ -57,7 +56,7 @@ async function proxy(request: NextRequest, pathSegments: string[] | undefined) {
             method,
             headers,
             body: hasBody ? request.body : undefined,
-            // @ts-expect-error duplex required for streaming request bodies in Node
+            // @ts-expect-error
             duplex: hasBody ? "half" : undefined,
             cache: "no-store",
         });

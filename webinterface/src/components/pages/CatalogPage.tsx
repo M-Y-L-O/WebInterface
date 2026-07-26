@@ -341,7 +341,7 @@ export default function CatalogPage({
                                         }
                                         onClick={() => onOpen(selectedItem)}
                                     >
-                                        <DummyVisualiser/>
+                                        <DummyVisualiser />
                                         <div className={"flex items-center justify-center w-full bg-[var(--background)] p-[1rem] group-hover:bg-[var(--primary)] group-hover:text-[var(--card-background)] transition-colors "}>
                                             <h2>
                                                 {clientStatus !== "Connected"

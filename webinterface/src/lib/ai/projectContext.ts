@@ -19,7 +19,6 @@ function safeError(e: unknown): string {
     return String(e);
 }
 
-/** Compact snapshot embedded in the Gemini system instruction each turn. */
 export function buildProjectContextSnapshot(): string {
     const { project, csv, visualisation, optimizationRun, descriptorDraft } = useProjectStore.getState();
     const client = useClientStore.getState().client;
@@ -66,9 +65,6 @@ export function buildProjectContextSnapshot(): string {
             graphEdgeCount: edges.length,
             csvPresent: Boolean(csv),
             csvTopLevelKeys: csvKeys,
-            // hasDescriptorDraft: true means the Model Editor is open with unsaved
-            // changes. get_model_descriptor will return that live draft, not the
-            // last-saved file.
             hasDescriptorDraft: Boolean(descriptorDraft),
             optimization: optimizationRun
                 ? {

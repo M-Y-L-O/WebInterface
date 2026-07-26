@@ -285,7 +285,7 @@ function TrainingSection({history}: {history?: TrainingHistory | null}) {
                         {history.early_stopped ? " · early stopped" : ""}
                     </div>
                     <svg className={Styles.sparkline} viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="none">
-                        {trainPath && <path d={trainPath} />}
+                        {trainPath && <path className={Styles.primary} d={trainPath} />}
                         {valPath && <path className={Styles.sparklineSecondary} d={valPath} />}
                     </svg>
                     <div className={Styles.curveLegend}>
@@ -735,6 +735,7 @@ export default function Optimization(props: IDockviewPanelProps) {
                     </div>
                 </div>
 
+                <div className={"flex gap-[1rem] justify-evenly"}>
                 <div className={Styles.section}>
                     <h2>Training Epochs</h2>
                     <input type={"number"} defaultValue={10} onChange={(e)=>{setTrainingEpochs(parseInt(e.target.value))}} />
@@ -746,6 +747,7 @@ export default function Optimization(props: IDockviewPanelProps) {
                         <input type={"number"} defaultValue={5} onChange={(e)=>{setGenerations(parseInt(e.target.value))}} />
                     </div>
                 }
+                </div>
                 <button
                     onClick={startOptimization}
                     className={Styles.startButton}

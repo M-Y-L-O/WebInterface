@@ -1,5 +1,6 @@
 import type {
     ClientConfig,
+    ModelDiagnosticsReport,
     OptimizationReport,
     ProgressUpdate,
 } from "@/lib/client/ClientTypes";
@@ -28,6 +29,13 @@ export type OptimizationRunState = {
     completedAt: number | null;
 };
 
+export type DiagnosticsRunState = {
+    result: ModelDiagnosticsReport | null;
+    report: ModelDiagnosticsReport | null;
+    runError: string | null;
+    completedAt: number | null;
+};
+
 export type PersistedClientState = {
     config: ClientConfig | null;
 };
@@ -37,6 +45,7 @@ export type PersistedProjectState = {
     csv: unknown | null;
     visualisation: unknown | null;
     optimizationRun: OptimizationRunState | null;
+    diagnosticsRun: DiagnosticsRunState | null;
 };
 
 export type DockLayoutJson = SerializedDockview;

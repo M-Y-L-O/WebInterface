@@ -6,6 +6,7 @@ import Properties from "@/components/windows/Other/Properties";
 import DataInfo from "@/components/windows/DataWindows/DataInfo";
 import DataViewer from "@/components/windows/DataWindows/DataViewer";
 import Optimization from "@/components/windows/Optimization/Optimization";
+import Diagnostics from "@/components/windows/Diagnostics/Diagnostics";
 import ModelEditor from "@/components/windows/ModelEditor/ModelEditor";
 
 export const enum Windows  {
@@ -17,7 +18,8 @@ export const enum Windows  {
     "Properties" = "Properties",
     "DataInfo" = "DataInfo",
     "DataViewer" = "DataViewer",
-    "Optimization" = "Optimization"
+    "Optimization" = "Optimization",
+    "Diagnostics" = "Diagnostics",
 }
 
 export type WindowType = keyof typeof Windows;
@@ -31,5 +33,6 @@ export const components = {
     Properties:Properties,
     DataInfo:DataInfo,
     DataViewer:DataViewer,
-    Optimization:Optimization
+    Optimization:Optimization,
+    Diagnostics:Diagnostics,
 }

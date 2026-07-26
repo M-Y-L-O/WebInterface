@@ -1,0 +1,231 @@
+.pageCont {
+    width: 100vw;
+    min-height: 100vh;
+    background: #050505;
+}
+
+.hero {
+    width: 100vw;
+    height: 100vh;
+    position: relative;
+    overflow: hidden;
+    background: #050505;
+}
+
+.hero-parallax {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    will-change: transform;
+    transition: transform 0.35s ease-out;
+}
+
+.hero-graph-frame {
+    width: 100%;
+    height: 100%;
+    transform: scale(1.15) rotate(-2deg);
+    transform-origin: center center;
+}
+
+.hero-graph {
+    width: 100%;
+    height: 100%;
+    filter: blur(8px);
+    opacity: 0.15;
+    transition:
+        filter 1.2s ease,
+        opacity 1.2s ease;
+}
+
+.hero-graph .react-flow {
+    width: 100%;
+    height: 100%;
+}
+
+.hero.hero-loaded .hero-graph {
+    filter: blur(3px);
+    opacity: 0.22;
+}
+
+/* --- React Flow scoped to hero --- */
+
+.hero .react-flow__node {
+    opacity: 0;
+    transform-origin: center;
+    /* breathe via filter so it doesn't fight RF transform */
+    animation-name: fadeNode, breatheGlow;
+    animation-duration: 0.4s, 6s;
+    animation-timing-function: ease, ease-in-out;
+    animation-iteration-count: 1, infinite;
+    animation-fill-mode: forwards, none;
+    animation-play-state: paused, paused;
+}
+
+.hero.hero-loaded .react-flow__node {
+    animation-play-state: running, running;
+}
+
+@keyframes fadeNode {
+    to {
+        opacity: 1;
+    }
+}
+
+@keyframes breatheGlow {
+    0%,
+    100% {
+        filter: brightness(1);
+    }
+    50% {
+        filter: brightness(1.12);
+    }
+}
+
+.hero .react-flow__edge-path {
+    stroke-dasharray: 1000;
+    stroke-dashoffset: 1000;
+}
+
+.hero.hero-loaded .react-flow__edge-path {
+    animation: draw 1.8s ease forwards;
+}
+
+@keyframes draw {
+    to {
+        stroke-dashoffset: 0;
+    }
+}
+
+.hero .hero-node-pulse {
+    z-index: 10 !important;
+    transition: box-shadow 0.35s ease;
+}
+
+/* --- Overlay + brand sequence --- */
+
+.hero .overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: radial-gradient(
+        ellipse at center,
+        rgba(0, 0, 0, 0.35) 0%,
+        rgba(0, 0, 0, 0.72) 70%,
+        rgba(0, 0, 0, 0.85) 100%
+    );
+    z-index: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    user-select: none;
+    pointer-events: none;
+}
+
+.hero-brand {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.75rem;
+    text-align: center;
+    pointer-events: auto;
+}
+
+.hero-wordmark {
+    opacity: 0;
+    transform: translateY(8px);
+}
+
+.hero-headline {
+    margin: 0;
+    font-size: clamp(1rem, 2.2vw, 1.35rem);
+    font-weight: 400;
+    letter-spacing: 0.04em;
+    color: rgba(241, 241, 241, 0.85);
+    opacity: 0;
+    transform: translateY(12px);
+}
+
+.hero-ctas {
+    display: flex;
+    gap: 0.75rem;
+    margin-top: 0.75rem;
+    opacity: 0;
+    transform: translateY(16px);
+}
+
+.hero-cta {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.65rem 1.35rem;
+    font-size: 0.9rem;
+    letter-spacing: 0.03em;
+    text-decoration: none;
+    border-radius: 4px;
+    transition:
+        background 0.2s ease,
+        border-color 0.2s ease,
+        color 0.2s ease;
+}
+
+.hero-cta-primary {
+    background: var(--primary);
+    color: #111;
+    border: 1px solid var(--primary);
+}
+
+.hero-cta-primary:hover {
+    background: var(--primary-hover);
+    border-color: var(--primary-hover);
+}
+
+.hero-cta-ghost {
+    background: transparent;
+    color: var(--text);
+    border: 1px solid rgba(255, 255, 255, 0.28);
+}
+
+.hero-cta-ghost:hover {
+    border-color: rgba(255, 255, 255, 0.55);
+    background: rgba(255, 255, 255, 0.06);
+}
+
+/* Brand appears after graph draw (~1.8s) + brief beat */
+.hero.hero-loaded .hero-wordmark {
+    animation: brandIn 0.9s ease forwards;
+    animation-delay: 2s;
+}
+
+.hero.hero-loaded .hero-headline {
+    animation: brandIn 0.85s ease forwards;
+    animation-delay: 2.45s;
+}
+
+.hero.hero-loaded .hero-ctas {
+    animation: brandIn 0.8s ease forwards;
+    animation-delay: 2.9s;
+}
+
+@keyframes brandIn {
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@media (max-width: 640px) {
+    .hero-graph-frame {
+        transform: scale(1.35) rotate(-2deg);
+    }
+
+    .hero-ctas {
+        flex-direction: column;
+        width: min(16rem, 80vw);
+    }
+
+    .hero-cta {
+        width: 100%;
+    }
+}

@@ -139,7 +139,7 @@ export const MYLO_FUNCTION_DECLARATIONS: FunctionDeclaration[] = [
     {
         name: "open_dashboard_panel",
         description:
-            "Open (or focus) a dashboard dock panel. Components: Chat, FileExplorer, ModelEditor, Visualiser, DataInfo, DataViewer, Properties, Optimization, Settings.",
+            "Open (or focus) a dashboard dock panel. Components: Chat, FileExplorer, ModelEditor, Visualiser, DataInfo, DataViewer, Properties, Optimization, Diagnostics, Settings.",
         parameters: {
             type: Type.OBJECT,
             properties: {

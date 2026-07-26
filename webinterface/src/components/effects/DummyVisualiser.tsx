@@ -1,3 +1,5 @@
+"use client";
+
 import { Node, Edge } from "@xyflow/react";
 import {ReactFlow, Background, Position} from "@xyflow/react";
 import {colorNode, layoutElements} from "@/lib/windows/visualiserHelpers";
@@ -72,9 +74,9 @@ export const designEdges: Edge[] = [
 
 
 const colorfulNodes = designNodes.map(node => colorNode({ ...node }));
-const positionedNodes = await layoutElements(colorfulNodes, designEdges, false);
+export const positionedNodes = await layoutElements(colorfulNodes, designEdges, false);
 
-export default function DummyVisualiser() {
+export default function DummyVisualiser({interactive=false}:{interactive?:boolean}) {
     return <div className={"w-full h-full"}>
         <ReactFlow
             nodes={positionedNodes}
@@ -84,16 +86,16 @@ export default function DummyVisualiser() {
             minZoom={0.05}
             maxZoom={2}
 
-            panOnDrag={false}
+            panOnDrag={interactive}
             panOnScroll={false}
-            zoomOnPinch={false}
-            zoomOnDoubleClick={false}
-            nodesDraggable={false}
-            nodesConnectable={false}
-            elementsSelectable={false}
+            zoomOnPinch={interactive}
+            zoomOnDoubleClick={interactive}
+            nodesDraggable={interactive}
+            nodesConnectable={interactive}
+            elementsSelectable={interactive}
             colorMode={"dark"}
         >
-            <Background/>
+            <Background  gap={32} size={1}/>
         </ReactFlow>
     </div>
 }

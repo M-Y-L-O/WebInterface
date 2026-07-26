@@ -12,6 +12,7 @@ interface SlotCardProps {
     setOpenSlot: (key: string | null) => void;
     visualiseSlot: (slot: SlotDescriptor) => void;
     openOptimization: (slot: SlotDescriptor) => void;
+    openDiagnostics: (slot: SlotDescriptor) => void;
     downloadSlot: (slot: SlotDescriptor) => void;
     editPt2: (slot: SlotDescriptor) => void;
     createNewPt2: (slot: SlotDescriptor) => void;
@@ -26,6 +27,7 @@ export default function SlotCard({
     setOpenSlot,
     visualiseSlot,
     openOptimization,
+    openDiagnostics,
     downloadSlot,
     editPt2,
     createNewPt2,
@@ -73,6 +75,15 @@ export default function SlotCard({
                                 disabled={!hasContent}
                             >
                                 Optimize <i className={"fa-solid fa-bolt"}/>
+                            </button>
+                        )}
+                        {slot.accept === ".pt2" && (
+                            <button
+                                className={Style.menuButton}
+                                onClick={() => openDiagnostics(slot)}
+                                disabled={!hasContent}
+                            >
+                                Diagnose <i className={"fa-solid fa-stethoscope"}/>
                             </button>
                         )}
                         {slot.accept === ".pt2" && !slot.label.toLowerCase().startsWith("optimized") && (

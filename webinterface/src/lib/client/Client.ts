@@ -1,5 +1,5 @@
 "use client"
-import {ClientConfig, ClientType, EndPoints, OptimizationRequest} from "@/lib/client/ClientTypes";
+import {ClientConfig, ClientType, EndPoints, ModelDiagnosticsRequest, OptimizationRequest} from "@/lib/client/ClientTypes";
 import {FileRequest, GetRequest, Request, RequestForFile, sseUrl, timedRequest} from "@/lib/client/Tunnel";
 import crypto from "crypto";
 import {getUUID} from "@/lib/auth";
@@ -96,6 +96,31 @@ export class Client {
         if(this.config.type === ClientType.LOCAL || this.config.type === ClientType.CLOUD){
             try{
                 const res = await GetRequest(EndPoints.optimizationReport, this.config);
+                if(res instanceof Error)
+                    return res;
+                if(!res.ok){
+                    const body = await res.json().catch(() => ({}));
+                    return new Error(body?.error || `Request failed: ${res.status}`);
+                }
+                return await res.json();
+            } catch (e) {
+                return new Error("Request failed:", {cause: e})
+            }
+        }
+    }
+
+    public async ModelDiagnosticsRequest(req: ModelDiagnosticsRequest){
+        try{
+            return await Request(EndPoints.modelDiagnostics, this.config, req);
+        } catch(e){
+            return new Error("Request failed:", {cause: e})
+        }
+    }
+
+    public async getModelDiagnosticsReport(){
+        if(this.config.type === ClientType.LOCAL || this.config.type === ClientType.CLOUD){
+            try{
+                const res = await GetRequest(EndPoints.modelDiagnosticsReport, this.config);
                 if(res instanceof Error)
                     return res;
                 if(!res.ok){

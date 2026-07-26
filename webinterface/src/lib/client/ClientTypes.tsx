@@ -160,12 +160,112 @@ export interface OptimizationReport {
     [key: string]: unknown;
 }
 
+export interface ModelDiagnosticsRequest {
+    mode?: "dummy" | "retrain" | string;
+    inputFeatures?: string[];
+    outputFeatures?: string[];
+    targetFeature?: string | string[];
+    epochs?: number;
+    problemType?: string;
+    batchSize?: number;
+    validationSplit?: number;
+    learningRate?: number;
+}
+
+export interface DiagnosticsWarningItem {
+    severity?: string;
+    category?: string;
+    message?: string;
+    node_id?: string | null;
+    details?: Record<string, unknown>;
+    suggestion?: string | null;
+}
+
+export interface DiagnosticsWarnings {
+    total?: number;
+    by_severity?: Record<string, number>;
+    by_category?: Record<string, number>;
+    items?: DiagnosticsWarningItem[];
+}
+
+export interface ModelDiagnosticsReport {
+    status?: string;
+    error?: string;
+    schema_version?: string;
+    request?: {
+        mode?: string;
+        input_features?: string[];
+        output_features?: string[];
+        epochs?: number;
+        problem_type?: string;
+    };
+    overview?: {
+        validated?: boolean;
+        model_name?: string;
+        input_shape?: number[];
+        output_shape?: number[];
+        diagnostic_mode?: string;
+        weights_loaded?: boolean;
+        forward_pass_succeeded?: boolean;
+        onnx_exported?: boolean;
+    };
+    architecture?: {
+        node_count?: number;
+        edge_count?: number;
+        node_type_counts?: Record<string, number>;
+        graph_density?: number;
+        shape_inference_available?: boolean;
+        shape_inference_error?: string | null;
+        total_parameters?: number;
+        trainable_parameters?: number;
+        buffer_parameters?: number;
+        parameter_bytes?: number;
+        parameter_megabytes?: number;
+        parameter_density?: Record<string, unknown> | number | null;
+    };
+    inference?: {
+        dummy_input_shape?: number[];
+        succeeded?: boolean;
+        latency_ms?: number | null;
+        output_summary?: Record<string, unknown>;
+        error?: string;
+        compute?: Record<string, unknown>;
+        memory?: Record<string, unknown>;
+    };
+    training?: Record<string, unknown>;
+    validation?: Record<string, unknown>;
+    warnings?: DiagnosticsWarnings;
+    weights?: {
+        requested?: boolean;
+        loaded?: boolean;
+        matched_key_count?: number;
+        unmatched_source_count?: number;
+        unmatched_target_count?: number;
+        error?: string;
+    };
+    onnx?: {
+        exported?: boolean;
+        valid?: boolean | null;
+        size_bytes?: number;
+        error?: string;
+    };
+    report_path?: string;
+    artifacts?: {
+        report?: string | null;
+        onnx?: string | null;
+        retrained_weights?: string | null;
+    };
+    [key: string]: unknown;
+}
+
 export enum EndPoints{
     health = "/",
     initialize = "/initialize",
     optimize = "/optimizeModel",
     optimizeStatus = "/optimizationStatus",
     optimizationReport = "/optimizationReport",
+    modelDiagnostics = "/modelDiagnostics",
+    modelDiagnosticsReport = "/modelDiagnosticsReport",
     projectFiles = "/projectFiles",
     visualizeProjectFile = "/visualizeProjectFile",
     downloadOptimized = "/download-optimized",

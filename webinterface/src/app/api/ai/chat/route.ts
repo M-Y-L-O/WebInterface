@@ -6,9 +6,6 @@ import { buildSystemInstruction } from "@/lib/ai/systemPrompt";
 import { MYLO_FUNCTION_DECLARATIONS } from "@/lib/ai/tools";
 import type { AiChatRequest, AiChatResponse, AiContent, AiFunctionCall } from "@/lib/ai/types";
 
-export const runtime = "nodejs";
-export const maxDuration = 60;
-
 function getModelId() {
     return process.env.GEMINI_MODEL?.trim() || "gemini-2.5-flash";
 }
@@ -51,15 +48,10 @@ export async function POST(request: NextRequest) {
         const baseConfig = {
             systemInstruction,
             temperature: 0.4,
-            // Tools run on the client against the MYLO agent — disable server AFC.
             automaticFunctionCalling: { disable: true as const },
         };
 
-        // Prefer AI Studio built-ins + MYLO tools. Some models reject the mix — fall back.
-        const fullTools = [
-            { functionDeclarations: MYLO_FUNCTION_DECLARATIONS },
-        ];
-        const myloOnlyTools = [
+        const tools = [
             { functionDeclarations: MYLO_FUNCTION_DECLARATIONS },
         ];
 
@@ -68,7 +60,7 @@ export async function POST(request: NextRequest) {
             response = await ai.models.generateContent({
                 model,
                 contents: body.contents as any,
-                config: { ...baseConfig, tools: fullTools },
+                config: { ...baseConfig, tools: tools },
             });
         } catch (mixErr) {
             const mixMsg = mixErr instanceof Error ? mixErr.message : String(mixErr);
@@ -79,7 +71,7 @@ export async function POST(request: NextRequest) {
             response = await ai.models.generateContent({
                 model,
                 contents: body.contents as any,
-                config: { ...baseConfig, tools: myloOnlyTools },
+                config: { ...baseConfig, tools: tools },
             });
         }
 
@@ -103,7 +95,6 @@ export async function POST(request: NextRequest) {
             }
         }
 
-        // Fallback: SDK helper if parts parsing missed calls
         if (!functionCalls.length && Array.isArray((response as any).functionCalls)) {
             for (const fc of (response as any).functionCalls) {
                 if (!fc?.name) continue;

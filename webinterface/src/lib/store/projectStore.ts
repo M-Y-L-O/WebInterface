@@ -2,14 +2,15 @@
 
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
-import type { OptimizationReport, ProgressUpdate } from "@/lib/client/ClientTypes";
-import type { OptimizationRunState } from "./types";
+import type { ModelDiagnosticsReport, OptimizationReport, ProgressUpdate } from "@/lib/client/ClientTypes";
+import type { DiagnosticsRunState, OptimizationRunState } from "./types";
 
 type ProjectStore = {
     project: any | null;
     csv: any | null;
     visualisation: any | null;
     optimizationRun: OptimizationRunState | null;
+    diagnosticsRun: DiagnosticsRunState | null;
     /** Live in-editor descriptor draft — reflects unsaved modifications. */
     descriptorDraft: any | null;
 
@@ -31,6 +32,14 @@ type ProjectStore = {
         runError?: string | null;
     }) => void;
     clearOptimizationRun: () => void;
+
+    beginDiagnosticsRun: () => void;
+    setDiagnosticsResult: (payload: {
+        result?: ModelDiagnosticsReport | null;
+        report?: ModelDiagnosticsReport | null;
+        runError?: string | null;
+    }) => void;
+    clearDiagnosticsRun: () => void;
 };
 
 function projectIdOf(project: any | null): string | null {
@@ -54,6 +63,23 @@ function normalizeProjectPayload(raw: any | null): any | null {
         },
         modelData: raw.modelData ?? null,
         csvData: raw.csvData ?? null,
+        hasDiagnosticsReport: raw.hasDiagnosticsReport ?? false,
+        diagnosticsReport: raw.diagnosticsReport ?? null,
+        hasOptimizationReport: raw.hasOptimizationReport ?? false,
+        optimizationSummary: raw.optimizationSummary ?? null,
+    };
+}
+
+function diagnosticsRunFromProject(raw: any | null): DiagnosticsRunState | null {
+    const report = raw?.diagnosticsReport;
+    if (!report || typeof report !== "object" || report.error) {
+        return null;
+    }
+    return {
+        result: report as ModelDiagnosticsReport,
+        report: report as ModelDiagnosticsReport,
+        runError: null,
+        completedAt: Date.now(),
     };
 }
 
@@ -69,6 +95,13 @@ const emptyOptimizationRun = (): OptimizationRunState => ({
     completedAt: null,
 });
 
+const emptyDiagnosticsRun = (): DiagnosticsRunState => ({
+    result: null,
+    report: null,
+    runError: null,
+    completedAt: null,
+});
+
 export const useProjectStore = create<ProjectStore>()(
     persist(
         (set) => ({
@@ -76,6 +109,7 @@ export const useProjectStore = create<ProjectStore>()(
             csv: null,
             visualisation: null,
             optimizationRun: null,
+            diagnosticsRun: null,
             descriptorDraft: null,
 
             setProject: (project) => set({ project }),
@@ -95,6 +129,7 @@ export const useProjectStore = create<ProjectStore>()(
                         csv: null,
                         visualisation: null,
                         optimizationRun: null,
+                        diagnosticsRun: null,
                     });
                     return;
                 }
@@ -104,8 +139,10 @@ export const useProjectStore = create<ProjectStore>()(
                     project,
                     visualisation: project?.modelData ?? null,
                     csv: project?.csvData ?? null,
-                    // Fresh project load — drop previous session run and descriptor draft.
+                    // Fresh project load — drop previous session optimization run.
                     optimizationRun: null,
+                    // Restore diagnostics from the project file when present.
+                    diagnosticsRun: diagnosticsRunFromProject(project),
                     descriptorDraft: null,
                 });
             },
@@ -116,6 +153,7 @@ export const useProjectStore = create<ProjectStore>()(
                     csv: null,
                     visualisation: null,
                     optimizationRun: null,
+                    diagnosticsRun: null,
                     descriptorDraft: null,
                 }),
 
@@ -156,6 +194,31 @@ export const useProjectStore = create<ProjectStore>()(
                 }),
 
             clearOptimizationRun: () => set({ optimizationRun: null }),
+
+            beginDiagnosticsRun: () =>
+                set({
+                    diagnosticsRun: emptyDiagnosticsRun(),
+                }),
+
+            setDiagnosticsResult: ({ result, report, runError }) =>
+                set((state) => {
+                    const run = state.diagnosticsRun ?? emptyDiagnosticsRun();
+                    const nextResult = result !== undefined ? result : run.result;
+                    const nextReport = report !== undefined ? report : run.report;
+                    const nextError = runError !== undefined ? runError : run.runError;
+                    const hasOutcome = !!(nextResult || nextReport || nextError);
+                    return {
+                        diagnosticsRun: {
+                            ...run,
+                            result: nextResult ?? null,
+                            report: nextReport ?? null,
+                            runError: nextError ?? null,
+                            completedAt: hasOutcome ? Date.now() : run.completedAt,
+                        },
+                    };
+                }),
+
+            clearDiagnosticsRun: () => set({ diagnosticsRun: null }),
         }),
         {
             name: "mylo-project",
@@ -165,6 +228,7 @@ export const useProjectStore = create<ProjectStore>()(
                 csv: state.csv,
                 visualisation: state.visualisation,
                 optimizationRun: state.optimizationRun,
+                diagnosticsRun: state.diagnosticsRun,
                 // descriptorDraft is intentionally NOT persisted — it's ephemeral UI state.
             }),
             onRehydrateStorage: () => (state) => {

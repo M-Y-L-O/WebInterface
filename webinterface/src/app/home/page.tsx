@@ -1,11 +1,11 @@
 "use client"
-import React, {useEffect, useState} from "react";
+import React, {useLayoutEffect, useEffect, useState} from "react";
 import {ClientConfig, ClientType} from "@/lib/client/ClientTypes";
 import {toast} from "sonner";
 
 import "./styles.css"
 import {getConfigs} from "@/lib/db/configs";
-import {getSession} from "next-auth/react";
+import {getSession, signOut} from "next-auth/react";
 import {
     migrateLegacySessionStorage,
     onStoresHydrated,
@@ -18,12 +18,15 @@ import ConfigsPage from "@/components/pages/ConfigsPage";
 import CatalogPage from "@/components/pages/CatalogPage";
 import {AnimatePresence, motion} from "framer-motion";
 import {provisionCloudSession} from "@/lib/cloud/sessionClient";
+import {Session} from "next-auth";
 
 export default function Home() {
     const [activeConfig, setActiveConfig] = useState<number|undefined|null>();
     const [configs, setConfigs] = useState<ClientConfig[]>([]);
     const [openPage, setOpenPage] = useState<number>(0);
     const [hydrated, setHydrated] = useState(false);
+    const [session, setSession] = useState<Session|null>(null);
+    const [profileDropdown, setProfileDropdown] = useState<boolean>(false);
 
     const status = useClientStore(state => state.status);
     const connect = useClientStore(state => state.connect);
@@ -41,6 +44,7 @@ export default function Home() {
         const session = await getSession();
         if(!session)
             return;
+        setSession(session);
         //@ts-ignore
         const nextConfigs = await getConfigs(session.user.id);
         setConfigs(nextConfigs);
@@ -109,7 +113,7 @@ export default function Home() {
         toast.success("Connected", {duration: 5000});
     }
 
-    useEffect(() => {
+    useLayoutEffect(() => {
         if (storesHaveHydrated()) {
             setHydrated(true);
         }
@@ -186,7 +190,22 @@ export default function Home() {
                             )
                         }
                     </button>
-                    <button >Docs</button>
+                    <button>Docs</button>
+                </div>
+                <div className={"profile"}>
+                    <button onClick={()=>{setProfileDropdown(!profileDropdown)}} className={ profileDropdown ? "profileButton border border-2 border-[var(--primary)] rounded-full" : "profileButton"}>
+                        {
+                            session?.user?.image ? <img src={session.user.image}/> : (<i className={"fa-solid fa-circle-user"} style={{fontSize:"3rem"}}></i>)
+                        }
+                    </button>
+                    <AnimatePresence>
+                    {
+                        profileDropdown &&
+                        <motion.div className={"dropdown"} initial={{height:0, opacity:0}} animate={{height:80, opacity:1}} exit={{height:0, opacity:0}} transition={{duration:0.2}}>
+                            <button onClick={()=>{signOut()}}>Sign out <i className={"fa-solid fa-arrow-right-from-bracket"}></i></button>
+                        </motion.div>
+                    }
+                    </AnimatePresence>
                 </div>
             </nav>
             <AnimatePresence>

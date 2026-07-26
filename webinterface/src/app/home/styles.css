@@ -15,9 +15,12 @@
     right: 1rem;
 
     display: flex;
+    align-items: center;
+    gap: 1rem;
     background-color: var(--card-background);
     border-radius: 10rem;
     padding: 0.2rem 0.2rem;
+    z-index: 100;
 }
 
 .navBarItems{
@@ -45,4 +48,43 @@
 
 .navBarItems button:hover{
     color:white;
+}
+
+.profile{
+    height: 3rem;
+    width: 3rem;
+    position: relative;
+}
+
+.profile img{
+    height: 100%;
+    border-radius: 50%;
+}
+
+.dropdown{
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    border-radius: 0.5rem;
+    position: absolute;
+    right: 0;
+    top: 50%;
+    padding-top: 2rem;
+    overflow: hidden;
+    transition: 0.2s ease-in-out;
+    background-color: var(--card-background);
+    z-index: -1;
+}
+
+.dropdown button{
+    padding: 0.5rem 1rem;
+    border-radius: 0.5rem;
+    text-wrap: nowrap;
+    color: var(--text-light);
+    background-color: var(--card-background);
+    transition: 0.2s ease-in-out;
+}
+
+.dropdown button:hover{
+    color: var(--error);
 }

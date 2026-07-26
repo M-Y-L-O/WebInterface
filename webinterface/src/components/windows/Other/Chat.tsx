@@ -37,7 +37,7 @@ export default function Chat() {
             id: "welcome",
             role: "assistant",
             content:
-                "Hi — I'm the MYLO assistant. I can inspect your project, dataset, and model, and I can edit the model graph when an agent is connected. Ask me anything.",
+                "Hi — I'm the MYLO assistant. Ask me anything about the project and I'll see with what I can help.",
         },
     ]);
     const [input, setInput] = useState("");

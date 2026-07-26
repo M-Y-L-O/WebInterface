@@ -17,7 +17,6 @@ export type AiContent = {
 
 export type AiChatRequest = {
     contents: AiContent[];
-    /** Compact project snapshot injected into the system instruction. */
     projectContext?: string;
 };
 
@@ -30,7 +29,6 @@ export type AiFunctionCall = {
 export type AiChatResponse = {
     text?: string;
     functionCalls?: AiFunctionCall[];
-    /** Full model turn to append to conversation history. */
     modelContent?: AiContent;
     error?: string;
 };

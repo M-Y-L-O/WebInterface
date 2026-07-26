@@ -162,6 +162,28 @@ export default function FileExplorer(_props: IDockviewPanelProps) {
         } as any);
     }
 
+    function openDiagnostics(slot: SlotDescriptor) {
+        if (!api) {
+            return;
+        }
+
+        const panelId = `Diagnostics-${slot.key}`;
+        const existing = api.getPanel(panelId);
+        if (existing) {
+            existing.api.setActive();
+            return;
+        }
+
+        api.addPanel({
+            id: panelId,
+            component: "Diagnostics",
+            title: `Diagnose - ${slot.name}`,
+            params: {
+                modelFilepath: slot.path,
+            },
+        } as any);
+    }
+
     async function uploadSlot(slot: SlotDescriptor) {
         if (!client) {
             return;
@@ -396,6 +418,7 @@ export default function FileExplorer(_props: IDockviewPanelProps) {
                         setOpenSlot={setOpenSlot}
                         visualiseSlot={visualiseSlot}
                         openOptimization={openOptimization}
+                        openDiagnostics={openDiagnostics}
                         downloadSlot={downloadSlot}
                         editPt2={editPt2}
                         createNewPt2={openNewPt2Picker}
@@ -418,6 +441,7 @@ export default function FileExplorer(_props: IDockviewPanelProps) {
                         setOpenSlot={setOpenSlot}
                         visualiseSlot={visualiseSlot}
                         openOptimization={openOptimization}
+                        openDiagnostics={openDiagnostics}
                         downloadSlot={downloadSlot}
                         editPt2={editPt2}
                         createNewPt2={openNewPt2Picker}

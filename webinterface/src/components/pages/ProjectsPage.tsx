@@ -152,7 +152,7 @@ export default function ProjectsPage({activeConfig, clientStatus, onStatusClick}
         <div className={Style.container}>
             <h1 className={Style.title}>Welcome back, {userName}!</h1>
             <div className={Style.section}>
-                <div className={Style.list}>
+                <div className={`${Style.list} ml-[1rem]`}>
                     <button className={Style.createButton} onClick={uploadProject}>
                         <h1><i className={"fa-solid fa-file"}/> </h1>
                         <h2>Open from computer</h2>
@@ -212,7 +212,7 @@ export default function ProjectsPage({activeConfig, clientStatus, onStatusClick}
                         </div>
                 }
                 <h1 className={Style.title}>Cloud Saved:</h1>
-                <div className={Style.list}>
+                <div className={`${Style.list} ml-[1rem]`}>
                     {cloudProjects.length === 0 ? (
                         <div className={Style.empty}>
                             <div className={"flex items-center gap-[5rem]"}>

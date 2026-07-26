@@ -91,7 +91,6 @@ export async function executeAiTool(
             }
 
             case "get_model_descriptor": {
-                // Prefer the live editor draft so the AI sees unsaved changes.
                 const draft = useProjectStore.getState().descriptorDraft;
                 if (draft) {
                     return summarizeDescriptor(
@@ -99,8 +98,7 @@ export async function executeAiTool(
                         args.includeParams !== false,
                     ) as Record<string, unknown>;
                 }
-                // Fall back to fetching from the agent (covers the case where the
-                // editor is not open / no draft has been set yet).
+
                 const client = requireClient();
                 const res = await client.getModelDescriptor();
                 if (!res || res instanceof Error) {
@@ -188,7 +186,6 @@ export async function executeAiTool(
                 const operation = String(args.operation || "");
                 if (!operation) return { error: "operation is required" };
 
-                // Use the live editor draft so AI edits chain on top of unsaved changes.
                 const draftDesc = useProjectStore.getState().descriptorDraft;
 
                 const res = await client.editModel({
@@ -207,7 +204,6 @@ export async function executeAiTool(
                 const operation = String(args.operation || "");
                 if (!operation) return { error: "operation is required" };
 
-                // Use the live editor draft so previews chain on top of unsaved changes.
                 const draftDesc = useProjectStore.getState().descriptorDraft;
 
                 const res = await client.previewEdit({
@@ -222,7 +218,6 @@ export async function executeAiTool(
 
             case "validate_model": {
                 const client = requireClient();
-                // Validate against the live draft (unsaved edits are included).
                 const draftDesc = useProjectStore.getState().descriptorDraft;
                 let descriptor: any;
                 if (draftDesc) {
@@ -240,7 +235,7 @@ export async function executeAiTool(
 
             case "save_model": {
                 const client = requireClient();
-                // Save the live draft (includes all unsaved edits) if available.
+
                 const draftDesc = useProjectStore.getState().descriptorDraft;
                 let descriptor: any;
                 if (draftDesc) {

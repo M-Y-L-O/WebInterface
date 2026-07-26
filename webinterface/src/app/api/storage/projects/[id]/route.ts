@@ -10,10 +10,6 @@ function sanitizeProjectFileName(name: string): string {
     return safe.endsWith(".mylo") ? safe : `${safe}.mylo`;
 }
 
-/**
- * Stream a cloud project `.mylo` to the browser.
- * Avoids server-action base64 payloads (size limits / corruption).
- */
 export async function GET(
     _request: NextRequest,
     context: {params: Promise<{id: string}>},

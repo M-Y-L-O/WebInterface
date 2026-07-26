@@ -4,9 +4,6 @@ import {authOptions} from "@/lib/auth-options";
 import {getCatalogItem} from "@/lib/db/catalog";
 import {getFileBytes} from "@/lib/storage/r2bucket";
 
-/**
- * Stream a catalog item file to the browser (auth required).
- */
 export async function GET(
     _request: NextRequest,
     context: {params: Promise<{id: string}>},
