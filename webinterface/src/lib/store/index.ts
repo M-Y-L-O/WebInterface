@@ -4,7 +4,12 @@ export {
     useProjectStore,
     useVisualisationStore,
     getProjectId,
+    emptyVisualisations,
+    resolveVizSlotKey,
+    getPrimaryVisualisation,
+    SLOT_TO_VIZ_KEY,
 } from "./projectStore";
+export type { ProjectVisualisations, VisualisationSlotKey } from "./projectStore";
 export {
     useWorkspaceStore,
     useDockviewStore,
@@ -50,8 +55,9 @@ export function migrateLegacySessionStorage(): void {
         }
 
         const vis = sessionStorage.getItem("visRes");
-        if (vis && vis !== "undefined" && !useProjectStore.getState().visualisation) {
-            useProjectStore.getState().setVisualisation(JSON.parse(vis));
+        const hasCachedViz = Object.values(useProjectStore.getState().visualisations).some(Boolean);
+        if (vis && vis !== "undefined" && !hasCachedViz) {
+            useProjectStore.getState().setUploadPt2(JSON.parse(vis));
         }
 
         const csv = sessionStorage.getItem("csv");

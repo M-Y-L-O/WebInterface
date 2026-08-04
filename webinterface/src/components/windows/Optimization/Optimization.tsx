@@ -66,17 +66,18 @@ function sparkPath(values: Array<number | string | null | undefined>, width: num
     }).join(" ");
 }
 
-function Metric({label, value, delta}: {
+function Metric({label, value, delta, reversed = false}: {
     label: string;
     value: string;
     delta?: unknown;
+    reversed?: boolean;
 }) {
     return (
         <div className={Styles.metricCard}>
             <span className={Styles.metricLabel}>{label}</span>
             <span className={Styles.metricValue}>{value}</span>
             {delta !== undefined && delta !== null && (
-                <span className={Styles.metricDelta} data-tone={deltaTone(delta)}>
+                <span className={Styles.metricDelta} data-tone={deltaTone(reversed ? -delta : delta)}>
                     {formatPct(delta)}
                 </span>
             )}
@@ -124,6 +125,7 @@ function SummarySection({
                     label="Latency (ms)"
                     value={formatNumber(improvement?.latency_ms_per_sample_after, 3)}
                     delta={improvement?.latency_change_pct}
+                    reversed={true}
                 />
                 {improvement?.accuracy_after != null && (
                     <Metric
@@ -471,6 +473,9 @@ export default function Optimization(props: IDockviewPanelProps) {
                         result: payload as OptimizationReport,
                         runError: null,
                     });
+                    // Optimized artifacts changed — drop stale cached graphs.
+                    useProjectStore.getState().clearVisualisation("optimized_pt2");
+                    useProjectStore.getState().clearVisualisation("optimized_onnx");
                     await loadReport();
                 }
             }
@@ -507,12 +512,12 @@ export default function Optimization(props: IDockviewPanelProps) {
                         <h2>Progress</h2>
                         <div className={Styles.statusMeta}>
                             <span>{latestStatus}</span>
-                            <span>{Math.round(Number(latestProgress) || 0)}%</span>
+                            <span>{Math.round(Number(showCompleted ? 100 : latestProgress) || 0)}%</span>
                         </div>
                         <div className={Styles.progressTrack}>
                             <div
                                 className={Styles.progressFill}
-                                style={{width: `${Math.min(100, Math.max(0, Number(latestProgress) || 0))}%`}}
+                                style={{width: `${Math.min(100, Math.max(0, Number(showCompleted ? 100 : latestProgress) || 0))}%`}}
                             />
                         </div>
 

@@ -1,5 +1,6 @@
 "use client"
 import React, {useLayoutEffect, useEffect, useState} from "react";
+import Link from "next/link";
 import {ClientConfig, ClientType} from "@/lib/client/ClientTypes";
 import {toast} from "sonner";
 
@@ -18,7 +19,9 @@ import ConfigsPage from "@/components/pages/ConfigsPage";
 import CatalogPage from "@/components/pages/CatalogPage";
 import {AnimatePresence, motion} from "framer-motion";
 import {provisionCloudSession} from "@/lib/cloud/sessionClient";
+import {getCloudEnabled} from "@/lib/cloud/flags";
 import {Session} from "next-auth";
+import Dropdown from "@/components/structural/Dropdown";
 
 export default function Home() {
     const [activeConfig, setActiveConfig] = useState<number|undefined|null>();
@@ -27,6 +30,7 @@ export default function Home() {
     const [hydrated, setHydrated] = useState(false);
     const [session, setSession] = useState<Session|null>(null);
     const [profileDropdown, setProfileDropdown] = useState<boolean>(false);
+    const [cloudEnabled, setCloudEnabled] = useState(true);
 
     const status = useClientStore(state => state.status);
     const connect = useClientStore(state => state.connect);
@@ -45,8 +49,8 @@ export default function Home() {
         if(!session)
             return;
         setSession(session);
-        //@ts-ignore
-        const nextConfigs = await getConfigs(session.user.id);
+        const [nextConfigs, enabled] = await Promise.all([getConfigs(), getCloudEnabled()]);
+        setCloudEnabled(enabled);
         setConfigs(nextConfigs);
 
         if(nextConfigs.length === 0){
@@ -77,7 +81,7 @@ export default function Home() {
 
         if(result.status === "timed_out" || !result.ok){
             // Dead / unreachable cloud container → restart once, then reconnect.
-            if (allowRestart && config.type === ClientType.CLOUD && config.dbId) {
+            if (cloudEnabled && allowRestart && config.type === ClientType.CLOUD && config.dbId) {
                 const toastId = toast.loading("Cloud agent unreachable — restarting session…");
                 const restarted = await provisionCloudSession({
                     configId: config.dbId,
@@ -190,7 +194,7 @@ export default function Home() {
                             )
                         }
                     </button>
-                    <button>Docs</button>
+                    <Link href="/docs">Docs</Link>
                 </div>
                 <div className={"profile"}>
                     <button onClick={()=>{setProfileDropdown(!profileDropdown)}} className={ profileDropdown ? "profileButton border border-2 border-[var(--primary)] rounded-full" : "profileButton"}>
@@ -211,11 +215,11 @@ export default function Home() {
             <AnimatePresence>
                 {
                     openPage === 0 &&
-                        <ProjectsPage activeConfig={configs[activeConfig!]} clientStatus={configStatus} onStatusClick={()=>{setOpenPage(1);}}/>
+                        <ProjectsPage activeConfig={configs[activeConfig!]} clientStatus={configStatus} onStatusClick={()=>{setOpenPage(1);}} cloudEnabled={cloudEnabled}/>
                 }
                 {
                     openPage === 1 &&
-                    <ConfigsPage configs={configs} activeConfig={activeConfig} clientStatus={configStatus} onClientSelect={(i)=>selectClient(i)} setConfigs={setConfigs} loadConfigs={()=>{ void loadConfigs();}}/>
+                    <ConfigsPage configs={configs} activeConfig={activeConfig} clientStatus={configStatus} onClientSelect={(i)=>selectClient(i)} setConfigs={setConfigs} loadConfigs={()=>{ void loadConfigs();}} cloudEnabled={cloudEnabled}/>
                 }
                 {
                     openPage === 2 &&

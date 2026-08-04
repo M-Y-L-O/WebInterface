@@ -25,17 +25,158 @@
     min-width: 30rem;
 }
 
+.cardHolder{
+    display: flex;
+    gap: 2rem;
+    flex-wrap: wrap;
+}
+
 .slot{
     display: flex;
     flex-direction: column;
+    gap: 0.75rem;
     background-color: var(--background);
     border-radius: 0.5rem;
     transition: 0.2s ease-in-out;
+    width: 100%;
+    min-width: 16rem;
+    flex: 1 1 18rem;
+    max-width: 28rem;
+    height: fit-content;
+    overflow: hidden;
 }
 
-.menuButton{
-    padding: 0.5rem 1rem;
+.slotMainActions{
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background-color: var(--card-background);
+    border-bottom: 1px solid color-mix(in srgb, var(--light-highlight) 28%, transparent);
+    margin:0 1rem;
     border-radius: 0.5rem;
+}
+
+.slotMainActions .divider{
+    height: 2.5rem;
+    width: 3px;
+    background-color: var(--light-highlight);
+}
+
+.slotMainActions button{
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    padding: 0.5rem 0.75rem;
+    background-color: var(--card-background);
+    color: var(--text);
+    transition: 0.2s ease-in-out;
+    cursor: pointer;
+    width: 98%;
+}
+
+.slotMainActions button:first-child{
+    border-top-left-radius: 0.5rem;
+    border-bottom-left-radius: 0.5rem;
+}
+
+.slotMainActions button:last-child{
+    border-top-right-radius: 0.5rem;
+    border-bottom-right-radius: 0.5rem;
+}
+
+.slotMainActions button:hover{
+    background-color: var(--primary);
+    color: var(--card-background);
+}
+
+.previewButton{
+    display: block;
+    width: calc(100% - 2rem);
+    margin: 0 1rem;
+    padding: 0;
+    border: 1px solid color-mix(in srgb, var(--light-highlight) 28%, transparent);
+    border-radius: 0.5rem;
+    background: color-mix(in srgb, var(--card-background) 80%, var(--background));
+    color: var(--text);
+    overflow: hidden;
+    cursor: pointer;
+    transition: border-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+
+.slotSecondaryActions{
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background-color: var(--card-background);
+    border-top: 1px solid color-mix(in srgb, var(--light-highlight) 28%, transparent);
+    margin:0 1rem 1rem;
+    border-radius: 0.5rem;
+    overflow: hidden;
+}
+
+
+.previewCanvas{
+    position: relative;
+    height: 8.5rem;
+    width: 100%;
+    pointer-events: none;
+}
+
+.previewActionButton{
+    width: 100%;
+    height: 100%;
+    display: flex;
+    gap:0.5rem;
+    align-items: center;
+    justify-content: center;
+    background: color-mix(in srgb, var(--card-background) 80%, var(--background));
+    color: var(--text);
+    transition: 0.2s ease-in-out;
+    cursor: pointer;
+    padding: 0.5rem;
+}
+
+.previewButton:hover .previewActionButton{
+    background: var(--primary);
+    color: var(--card-background);
+}
+
+.previewOverlay{
+    position: absolute;
+    inset: auto 0.6rem 0.6rem auto;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.25rem 0.55rem;
+    border-radius: 0.35rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    background: color-mix(in srgb, var(--background) 78%, transparent);
+    color: var(--text);
+    pointer-events: none;
+}
+
+.previewPlaceholder{
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.45rem;
+    height: 8.5rem;
+    font-size: 0.85rem;
+    opacity: 0.7;
+}
+
+.previewPlaceholder i{
+    font-size: 1.35rem;
+    opacity: 0.85;
+}
+
+.slotSecondaryActions .menuButton{
+    padding: 0.5rem 1rem;
     background-color: var(--card-background);
     color: var(--text);
     transition: 0.2s ease-in-out;
@@ -43,16 +184,41 @@
     gap: 0.5rem;
     justify-content: center;
     align-items: center;
+    font-size: 0;
+    width: 100%;
+    border-radius: 0;
+}
+
+.middle{
+    border-left: 2px solid var(--light-highlight);
+    border-right: 2px solid var(--light-highlight);
+}
+
+.menuButton i{
+    font-size: 1.5rem;
 }
 
 .menuButton:hover{
     background-color: var(--primary);
     color: var(--card-background);
     cursor: pointer;
+    font-size: 1rem;
 }
 
 .menuButton:active{
     background-color: var(--primary-hover);
+}
+
+
+.menuButton{
+    padding: 0.5rem 1rem;
+    transition: 0.2s ease-in-out;
+    border-radius: 0.5rem;
+    background-color: var(--card-background);
+    display: flex;
+    justify-content: center;
+    align-content: center;
+    gap: 0.5rem;
 }
 
 .pickerOverlay{

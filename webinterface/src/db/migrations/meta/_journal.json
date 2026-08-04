@@ -15,6 +15,13 @@
       "when": 1781949023541,
       "tag": "0001_huge_gressill",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1785582221901,
+      "tag": "0002_big_lucky_pierre",
+      "breakpoints": true
     }
   ]
 }

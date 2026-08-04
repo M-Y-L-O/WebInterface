@@ -1,11 +1,24 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth-options";
-import { createConfig, getConfigInternal, updateConfig } from "@/lib/db/configs";
+import {
+    bindCloudSession,
+    clearCloudSession,
+    countActiveCloudSessions,
+    createCloudConfig,
+    getConfigInternal,
+} from "@/lib/db/configs";
 import { createOrchestratorSession, deleteOrchestratorSession } from "@/lib/cloud/orchestrator";
+import { CLOUD_DISABLED_ERROR, isCloudEnabled } from "@/lib/cloud/enabled";
 import { ClientType, CLOUD_PROXY_BASE } from "@/lib/client/ClientTypes";
 
+const MAX_CLOUD_SESSIONS = Number(process.env.MAX_CLOUD_SESSIONS_PER_USER || 3);
+
 export async function POST(request: NextRequest) {
+    if (!isCloudEnabled()) {
+        return NextResponse.json({ error: CLOUD_DISABLED_ERROR }, { status: 403 });
+    }
+
     const session = await getServerSession(authOptions);
     // @ts-ignore
     const userId = session?.user?.id as string | undefined;
@@ -31,19 +44,25 @@ export async function POST(request: NextRequest) {
                     // Container may already be gone
                 }
             }
+        } else {
+            const active = await countActiveCloudSessions(userId);
+            if (active >= MAX_CLOUD_SESSIONS) {
+                return NextResponse.json(
+                    { error: `Cloud session limit reached (max ${MAX_CLOUD_SESSIONS}). Delete or restart an existing session.` },
+                    { status: 429 },
+                );
+            }
         }
 
         const orch = await createOrchestratorSession();
 
         try {
             if (configId) {
-                await updateConfig(configId, {
+                await bindCloudSession(userId, configId, {
                     name,
-                    type: ClientType.CLOUD,
                     address: orch.address,
                     apiKey: orch.apiKey,
                     sessionId: orch.sessionId,
-                    dbId: configId,
                 });
 
                 return NextResponse.json({
@@ -59,9 +78,8 @@ export async function POST(request: NextRequest) {
                 });
             }
 
-            const created = await createConfig(userId, {
+            const created = await createCloudConfig(userId, {
                 name,
-                type: ClientType.CLOUD,
                 address: orch.address,
                 apiKey: orch.apiKey,
                 sessionId: orch.sessionId,
@@ -69,7 +87,6 @@ export async function POST(request: NextRequest) {
 
             return NextResponse.json({ ok: true, config: created });
         } catch (persistError) {
-            // Don't leave an orphaned container if DB write fails
             try {
                 await deleteOrchestratorSession(orch.sessionId);
             } catch {
@@ -111,14 +128,8 @@ export async function DELETE(request: NextRequest) {
         }
     }
 
-    // Clear stale agent binding so a later restart is required explicitly.
     if (existing.type === ClientType.CLOUD) {
-        await updateConfig(configId, {
-            ...existing,
-            address: "",
-            apiKey: "",
-            sessionId: undefined,
-        });
+        await clearCloudSession(userId, configId);
     }
 
     return NextResponse.json({ ok: true });

@@ -29,10 +29,14 @@ const menuVariants: Variants = {
     }
 }
 
-export default function Dropdown({options, defaultValue, onChange, textColor}:{options:string[], defaultValue:string, onChange:(option:string)=>void, textColor?:string}) {
+export default function Dropdown({options, defaultValue, onChange, textColor, small}:{options:string[], defaultValue:string, onChange:(option:string)=>void, textColor?:string, small?:boolean}) {
     const [open, setOpen] = useState(false);
     const [selected, setSelected] = useState(defaultValue);
     const dropDownRef = useRef<HTMLDivElement | null>(null)
+
+    useEffect(() => {
+        setSelected(defaultValue);
+    }, [defaultValue]);
 
     useEffect(()=>{
         function clickOutside(event: MouseEvent){
@@ -47,7 +51,7 @@ export default function Dropdown({options, defaultValue, onChange, textColor}:{o
 
     return(
         <div className={"relative w-full"} ref={dropDownRef}>
-            <button className={Style.toggle} onClick={()=>setOpen(!open)}>
+            <button className={`${Style.toggle} ${small && Style.small}`} onClick={()=>setOpen(!open)}>
                 <span style={textColor ?  {color:textColor} : {}}>{selected}</span>
                 <motion.div
                     animate={{rotate: open ? 180 : 0}}
@@ -60,7 +64,7 @@ export default function Dropdown({options, defaultValue, onChange, textColor}:{o
             <AnimatePresence>
                 {
                     open && (
-                        <motion.ul className={Style.dropdownMenu} initial={"hidden"} animate={"visible"} exit={"exit"} variants={menuVariants}>
+                        <motion.ul className={`${Style.dropdownMenu} ${small && Style.small}`} initial={"hidden"} animate={"visible"} exit={"exit"} variants={menuVariants}>
                             {options.map((option, index) => (
                                 <motion.li key={index} onClick={()=>{
                                     setSelected(option);

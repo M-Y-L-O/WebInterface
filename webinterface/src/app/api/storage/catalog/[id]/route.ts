@@ -29,26 +29,29 @@ export async function GET(
         const file = await getFileBytes(row.cloudPath);
         if (!file) {
             return NextResponse.json(
-                {error: `File missing in storage (key: ${row.cloudPath})`},
-                {status: 404},
+                { error: "File missing in storage" },
+                { status: 404 },
             );
         }
+
+        const safeName = String(row.fileName || "download")
+            .replace(/[\r\n"]+/g, "_")
+            .slice(0, 180);
 
         const body = Uint8Array.from(file.bytes);
         return new NextResponse(body, {
             status: 200,
             headers: {
                 "Content-Type": file.contentType || "application/octet-stream",
-                "Content-Disposition": `attachment; filename="${row.fileName}"`,
+                "Content-Disposition": `attachment; filename="${safeName}"`,
                 "Content-Length": String(body.byteLength),
-                "X-File-Name": row.fileName,
+                "X-File-Name": safeName,
                 "X-Catalog-Kind": row.kind,
                 "Cache-Control": "no-store",
             },
         });
     } catch (e) {
-        const message = e instanceof Error ? e.message : "Download failed";
         console.error("[api/storage/catalog]", id, e);
-        return NextResponse.json({error: message}, {status: 502});
+        return NextResponse.json({ error: "Download failed" }, { status: 502 });
     }
 }

@@ -1,0 +1,235 @@
+.container {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    width: 100%;
+    background: var(--card-background);
+    color: var(--text);
+    overflow: auto;
+}
+
+.header {
+    padding: 1.4rem;
+    border-bottom: 1px solid var(--light-highlight);
+    height: 4.5rem;
+}
+
+.header h1 {
+    font-size: 1.15rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    margin: 0;
+}
+
+.header p {
+    margin: 0.35rem 0 0;
+    font-size: 0.78rem;
+    color: var(--light-highlight);
+    max-width: 40rem;
+    line-height: 1.4;
+}
+
+.section {
+    padding: 1.25rem 1.4rem 1.75rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.85rem;
+    max-width: 36rem;
+}
+
+.section h2 {
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 700;
+}
+
+.help {
+    margin: 0;
+    font-size: 0.78rem;
+    color: var(--light-highlight);
+    line-height: 1.45;
+}
+
+.code {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 0.72rem;
+    color: var(--text);
+}
+
+.statusCard {
+    display: flex;
+    flex-direction: column;
+    gap: 0.55rem;
+    padding: 0.9rem 1rem;
+    border: 1px solid rgba(117, 117, 117, 0.45);
+    border-radius: 0.65rem;
+    background: rgba(0, 0, 0, 0.22);
+}
+
+.statusRow {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+    font-size: 0.85rem;
+}
+
+.label {
+    color: var(--light-highlight);
+}
+
+.mono {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    letter-spacing: 0.04em;
+}
+
+.badgeOk,
+.badgeBad {
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    padding: 0.2rem 0.55rem;
+    border-radius: 0.35rem;
+}
+
+.badgeOk {
+    background: rgba(47, 175, 94, 0.18);
+    color: #8dffb3;
+}
+
+.badgeBad {
+    background: rgba(218, 57, 57, 0.18);
+    color: #ffb4b4;
+}
+
+.empty {
+    font-size: 0.85rem;
+    color: var(--light-highlight);
+    padding: 0.75rem 0.9rem;
+    border: 1px dashed rgba(117, 117, 117, 0.5);
+    border-radius: 0.65rem;
+}
+
+.field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+    font-size: 0.85rem;
+}
+
+.inputRow {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.input {
+    flex: 1;
+    border-radius: 0.65rem;
+    border: 1px solid var(--light-highlight);
+    background: #171717;
+    color: var(--text);
+    padding: 0.65rem 0.8rem;
+    font-size: 0.9rem;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    outline: none;
+}
+
+.input:focus {
+    border-color: var(--text);
+}
+
+.input:disabled {
+    opacity: 0.6;
+}
+
+.actions {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.65rem;
+}
+
+.primaryBtn,
+.secondaryBtn,
+.dangerBtn,
+.ghostBtn {
+    border-radius: 0.65rem;
+    padding: 0.55rem 1rem;
+    font-weight: 700;
+    font-size: 0.85rem;
+    cursor: pointer;
+    transition: background 0.15s ease, border-color 0.15s ease, opacity 0.15s ease;
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+}
+
+.primaryBtn {
+    background: var(--primary);
+    color: #1a1a1a;
+    border: none;
+}
+
+.primaryBtn:hover:not(:disabled) {
+    background: var(--primary-hover);
+}
+
+.secondaryBtn {
+    background: transparent;
+    border: 1px solid var(--light-highlight);
+    color: var(--text);
+}
+
+.secondaryBtn:hover:not(:disabled) {
+    border-color: var(--primary);
+    color: var(--primary);
+}
+
+.dangerBtn {
+    background: transparent;
+    border: 1px solid var(--error);
+    color: #ffb4b4;
+}
+
+.dangerBtn:hover:not(:disabled) {
+    background: rgba(218, 57, 57, 0.12);
+}
+
+.ghostBtn {
+    background: transparent;
+    border: 1px solid var(--light-highlight);
+    color: var(--light-highlight);
+}
+
+.ghostBtn:hover:not(:disabled) {
+    color: var(--text);
+    border-color: var(--text);
+}
+
+.primaryBtn:disabled,
+.secondaryBtn:disabled,
+.dangerBtn:disabled,
+.ghostBtn:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+}
+
+.link {
+    font-size: 0.8rem;
+    color: var(--primary);
+    text-decoration: none;
+}
+
+.link:hover {
+    text-decoration: underline;
+}
+
+.error {
+    padding: 0.5rem 0.75rem;
+    border-radius: 0.5rem;
+    background: rgba(218, 57, 57, 0.15);
+    border: 1px solid var(--error);
+    color: #ffb4b4;
+    font-size: 0.8rem;
+}

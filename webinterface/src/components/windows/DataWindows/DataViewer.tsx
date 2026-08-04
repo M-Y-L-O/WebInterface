@@ -9,7 +9,7 @@ export default function DataViewer() {
         return <div>No data loaded</div>;
     }
     return (
-        <div className={"w-full h-full overflow-auto"}>
+        <div className={"w-full h-full overflow-auto p-[1rem]"}>
             <DataTable results={results}/>
         </div>
     )

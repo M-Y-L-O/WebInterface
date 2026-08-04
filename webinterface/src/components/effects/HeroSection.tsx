@@ -52,7 +52,7 @@ export default function HeroSection() {
                         <Link href="/auth" className="hero-cta hero-cta-primary">
                             Get started
                         </Link>
-                        <Link href="/auth" className="hero-cta hero-cta-ghost">
+                        <Link href="/docs" className="hero-cta hero-cta-ghost">
                             Docs
                         </Link>
                     </div>

@@ -15,6 +15,7 @@ import {
 } from "@/lib/store";
 import { ClientType } from "@/lib/client/ClientTypes";
 import { provisionCloudSession } from "@/lib/cloud/sessionClient";
+import { getCloudEnabled } from "@/lib/cloud/flags";
 import "./styles.css"
 
 function DashboardInner() {
@@ -27,6 +28,7 @@ function DashboardInner() {
     const bootstrapStartedRef = useRef(false);
     const projectName = searchParams.get("project");
     const [hydrated, setHydrated] = useState(false);
+    const [cloudEnabled, setCloudEnabled] = useState(true);
 
     useEffect(() => {
         if (storesHaveHydrated()) {
@@ -45,6 +47,10 @@ function DashboardInner() {
         void (async () => {
             migrateLegacySessionStorage();
 
+            const enabled = await getCloudEnabled();
+            if (cancelled) return;
+            setCloudEnabled(enabled);
+
             const config = useClientStore.getState().config;
             if (!config) {
                 toast.error("No client config found", {duration: 5000});
@@ -56,7 +62,7 @@ function DashboardInner() {
             if (cancelled) return;
 
             // Cloud agent may have died (Docker/orchestrator restart) — spin a fresh one once.
-            if (!result.ok && config.type === ClientType.CLOUD && config.dbId) {
+            if (!result.ok && enabled && config.type === ClientType.CLOUD && config.dbId) {
                 const toastId = toast.loading("Cloud agent unreachable — restarting session…");
                 const restarted = await provisionCloudSession({
                     configId: config.dbId,
@@ -138,7 +144,7 @@ function DashboardInner() {
 
     return(
         <main className={"dashCont"}>
-            <MenuBar />
+            <MenuBar cloudEnabled={cloudEnabled} />
             <div className={"w-[100vw] h-[100%]"}>
                 {hydrated ? <WindowManager/> : null}
             </div>

@@ -5,19 +5,24 @@ import {getSession} from "next-auth/react";
 import {toast} from "sonner";
 import Style from "./page.module.css"
 import {provisionCloudSession, teardownCloudSession} from "@/lib/cloud/sessionClient";
+import Dropdown from "@/components/structural/Dropdown";
 
-export default function ConfigsPage({configs, activeConfig, clientStatus, onClientSelect, setConfigs, loadConfigs}:{configs:ClientConfig[], activeConfig:number|null|undefined, clientStatus:string, onClientSelect:(index:number)=>void, setConfigs: (configs:ClientConfig[]) => void, loadConfigs:()=>void}) {
+export default function ConfigsPage({configs, activeConfig, clientStatus, onClientSelect, setConfigs, loadConfigs, cloudEnabled = true}:{configs:ClientConfig[], activeConfig:number|null|undefined, clientStatus:string, onClientSelect:(index:number)=>void, setConfigs: (configs:ClientConfig[]) => void, loadConfigs:()=>void, cloudEnabled?: boolean}) {
     const [address, setAddress] = useState<string>("http://127.0.0.1:8080");
-    const [apikey, setAPIKey] = useState<string>("1234");
+    const [apikey, setAPIKey] = useState<string>("");
     const [name, setName] = useState<string>("New config");
     const [type, setType] = useState<string>("local")
     const [showForm, setShowForm] = useState<boolean>(false);
-    const [editing, setediting] = useState<boolean>(false);
+    const [editing, setEditing] = useState<boolean>(false);
     const [editingIndex, setEditingIndex] = useState<number | null>(null);
     const [busy, setBusy] = useState(false);
     const [restartingId, setRestartingId] = useState<string | null>(null);
 
     const isCloud = type.toLowerCase() === "cloud";
+    const typeOptions =
+        !cloudEnabled && isCloud ? ["CLOUD"] :
+        cloudEnabled ? ["LOCAL", "CLOUD"] :
+        ["LOCAL"];
 
     async function deleteClient(index:number){
         const config = configs[index];
@@ -31,7 +36,7 @@ export default function ConfigsPage({configs, activeConfig, clientStatus, onClie
 
     async function restartCloud(index: number) {
         const config = configs[index];
-        if (config.type !== ClientType.CLOUD || !config.dbId) return;
+        if (!cloudEnabled || config.type !== ClientType.CLOUD || !config.dbId) return;
 
         setRestartingId(config.dbId);
         const toastId = toast.loading("Restarting cloud session…");
@@ -66,6 +71,10 @@ export default function ConfigsPage({configs, activeConfig, clientStatus, onClie
         setBusy(true);
         try {
             if (isCloud) {
+                if (!cloudEnabled) {
+                    toast.error("Cloud features are disabled", {duration: 5000});
+                    return;
+                }
                 const result = await provisionCloudSession({ name });
                 if (!result.ok) {
                     toast.error("Failed to start cloud session", {
@@ -86,8 +95,7 @@ export default function ConfigsPage({configs, activeConfig, clientStatus, onClie
                 apiKey: apikey,
                 type: ClientType.LOCAL,
             }
-            //@ts-ignore
-            const returnedConfig = await createConfig(session.user.id, config);
+            const returnedConfig = await createConfig(config);
             if(returnedConfig){
                 setConfigs([...configs, returnedConfig]);
                 setShowForm(false);
@@ -145,7 +153,7 @@ export default function ConfigsPage({configs, activeConfig, clientStatus, onClie
         <div className={Style.container}>
             <div className={Style.section}>
                 <h1 className={Style.title}>Active client:</h1>
-                <div className={Style.mainInfo}>
+                <div className={`${Style.mainInfo} ml-[1rem]`}>
                     <div className={"flex flex-col items-start"}>
                         <h1>{activeConfig !== null && configs[activeConfig!] ? configs[activeConfig!].name : "No config loaded"}</h1>
                         <h2>{activeConfig !== null && configs[activeConfig!] ? configs[activeConfig!].type.toString() : "-"}</h2>
@@ -155,12 +163,12 @@ export default function ConfigsPage({configs, activeConfig, clientStatus, onClie
             </div>
             <div className={Style.section}>
                 <h1 className={Style.title}>Configurations</h1>
-                <div className={Style.list}>
+                <div className={`${Style.list} ml-[1rem]`}>
                     <button className={Style.createButton} onClick={()=>{
                         setShowForm(true);
-                        setediting(false);
+                        setEditing(false);
                         setAddress("http://127.0.0.1:8080");
-                        setAPIKey("1234");
+                        setAPIKey("");
                         setName("New config");
                         setType("local");
                     }}>
@@ -181,7 +189,7 @@ export default function ConfigsPage({configs, activeConfig, clientStatus, onClie
                                     <button className={Style.editButton} onClick={(e)=>{
                                         e.stopPropagation();
 
-                                        setediting(true);
+                                        setEditing(true);
                                         setShowForm(true);
                                         setAddress(config.address);
                                         setAPIKey(config.apiKey);
@@ -205,10 +213,8 @@ export default function ConfigsPage({configs, activeConfig, clientStatus, onClie
                     <div className={Style.form}>
                         <h1>{editing ? "Edit client connection:" : "Create new client:"}</h1>
                         <input type={"text"} placeholder={"Config Name"} defaultValue={name} onChange={(e)=>{setName(e.target.value)}}/>
-                        <select defaultValue={type.toLowerCase()} onChange={(e)=>{setType(e.target.value)}} disabled={editing}>
-                            <option value={"local"}>LOCAL</option>
-                            <option value={"cloud"}>CLOUD</option>
-                        </select>
+                        <Dropdown defaultValue={type.toUpperCase()} onChange={(e)=>{setType(e.toLowerCase())}} options={typeOptions}>
+                        </Dropdown>
                         {!isCloud && (
                             <>
                                 <input type={"text"} placeholder={"Address"} defaultValue={address}  onChange={(e)=>{setAddress(e.target.value)}}/>
@@ -217,12 +223,14 @@ export default function ConfigsPage({configs, activeConfig, clientStatus, onClie
                         )}
                         {isCloud && (
                             <p style={{opacity: 0.7, fontSize: "0.9rem", margin: 0}}>
-                                {editing
+                                {!cloudEnabled
+                                    ? "Cloud features are disabled. You can rename or delete this config."
+                                    : editing
                                     ? "Cloud address and API key are managed automatically. Use the restart button on the card to spin up a fresh container."
                                     : "Creates a Docker agent via the orchestrator. No address or API key needed."}
                             </p>
                         )}
-                        {isCloud && editing && (
+                        {isCloud && editing && cloudEnabled && (
                             <button
                                 className={Style.closeButton}
                                 title="Restart cloud session"

@@ -3,6 +3,7 @@ import {getServerSession} from "next-auth";
 import {authOptions} from "@/lib/auth-options";
 import {getCloudProject} from "@/lib/db/cloudProjects";
 import {getFileBytes} from "@/lib/storage/r2bucket";
+import {CLOUD_DISABLED_ERROR, isCloudEnabled} from "@/lib/cloud/enabled";
 
 function sanitizeProjectFileName(name: string): string {
     const trimmed = name.trim() || "project";
@@ -14,6 +15,10 @@ export async function GET(
     _request: NextRequest,
     context: {params: Promise<{id: string}>},
 ) {
+    if (!isCloudEnabled()) {
+        return NextResponse.json({error: CLOUD_DISABLED_ERROR}, {status: 403});
+    }
+
     const session = await getServerSession(authOptions);
     // @ts-ignore
     const userId = session?.user?.id as string | undefined;
@@ -35,13 +40,12 @@ export async function GET(
         const file = await getFileBytes(row.cloudPath);
         if (!file) {
             return NextResponse.json(
-                {error: `File missing in storage (key: ${row.cloudPath})`},
-                {status: 404},
+                { error: "File missing in storage" },
+                { status: 404 },
             );
         }
 
         const fileName = sanitizeProjectFileName(row.name);
-        // Copy into a plain ArrayBuffer-backed Uint8Array for NextResponse BodyInit typing.
         const body = Uint8Array.from(file.bytes);
 
         return new NextResponse(body, {
@@ -55,8 +59,7 @@ export async function GET(
             },
         });
     } catch (e) {
-        const message = e instanceof Error ? e.message : "Download failed";
         console.error("[api/storage/projects]", id, e);
-        return NextResponse.json({error: message}, {status: 502});
+        return NextResponse.json({ error: "Download failed" }, { status: 502 });
     }
 }

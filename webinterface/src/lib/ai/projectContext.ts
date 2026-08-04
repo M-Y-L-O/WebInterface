@@ -1,4 +1,5 @@
 import { useClientStore, useDockviewStore, useProjectStore } from "@/lib/store";
+import { getPrimaryVisualisation } from "@/lib/store/projectStore";
 
 function truncateJson(value: unknown, maxChars = 12000): unknown {
     try {
@@ -20,7 +21,8 @@ function safeError(e: unknown): string {
 }
 
 export function buildProjectContextSnapshot(): string {
-    const { project, csv, visualisation, optimizationRun, descriptorDraft } = useProjectStore.getState();
+    const { project, csv, visualisations, optimizationRun, descriptorDraft } = useProjectStore.getState();
+    const visualisation = getPrimaryVisualisation(visualisations);
     const client = useClientStore.getState().client;
     const api = useDockviewStore.getState().api;
 
@@ -61,6 +63,12 @@ export function buildProjectContextSnapshot(): string {
                   }
                 : null,
             hasModelData: Boolean(project?.modelData || visualisation),
+            visualisationSlots: {
+                uploadedPt2: Boolean(visualisations.uploadedPt2),
+                uploadedOnnx: Boolean(visualisations.uploadedOnnx),
+                optimizedPt2: Boolean(visualisations.optimizedPt2),
+                optimizedOnnx: Boolean(visualisations.optimizedOnnx),
+            },
             graphNodeCount: nodes.length || descriptorNodes.length,
             graphEdgeCount: edges.length,
             csvPresent: Boolean(csv),

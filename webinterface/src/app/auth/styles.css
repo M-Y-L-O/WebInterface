@@ -4,6 +4,7 @@
     overflow: hidden;
     display: grid;
     grid-template-columns: 2fr 1fr;
+    box-shadow: 0 0 200px rgba(0,0,0,0.9) inset;
 }
 
 .special{
@@ -12,7 +13,6 @@
     column-span: 1;
     background-color: var(--card-background);
     overflow: hidden;
-
 }
 
 .form{

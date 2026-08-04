@@ -11,6 +11,7 @@ import {
 import type { AiFunctionCall } from "@/lib/ai/types";
 import { publishSavedModelGraph } from "@/lib/windows/Actions";
 import { useClientStore, useDockviewStore, useProjectStore } from "@/lib/store";
+import { getPrimaryVisualisation } from "@/lib/store/projectStore";
 
 function requireClient() {
     const client = useClientStore.getState().client;
@@ -50,7 +51,7 @@ function publishEditSideEffects(res: any) {
     }
 
     if (res.graph) {
-        useProjectStore.getState().setVisualisation(res.graph);
+        useProjectStore.getState().setUploadPt2(res.graph);
         const project = useProjectStore.getState().project;
         if (project) {
             useProjectStore.getState().setProject({
@@ -70,12 +71,19 @@ export async function executeAiTool(
     try {
         switch (name) {
             case "get_project_overview": {
-                const { project, csv, visualisation, optimizationRun } =
+                const { project, csv, visualisations, optimizationRun } =
                     useProjectStore.getState();
+                const hasVisualisation = Object.values(visualisations).some(Boolean);
                 return {
                     projectData: project?.projectData ?? null,
                     hasCsv: Boolean(csv),
-                    hasVisualisation: Boolean(visualisation),
+                    hasVisualisation,
+                    visualisationSlots: {
+                        uploadedPt2: Boolean(visualisations.uploadedPt2),
+                        uploadedOnnx: Boolean(visualisations.uploadedOnnx),
+                        optimizedPt2: Boolean(visualisations.optimizedPt2),
+                        optimizedOnnx: Boolean(visualisations.optimizedOnnx),
+                    },
                     optimizationRun: optimizationRun
                         ? {
                               updates: optimizationRun.updates?.length ?? 0,
@@ -112,7 +120,7 @@ export async function executeAiTool(
             }
 
             case "get_model_graph_summary": {
-                const graph = useProjectStore.getState().visualisation;
+                const graph = getPrimaryVisualisation(useProjectStore.getState().visualisations);
                 if (!graph) return { error: "No visualisation graph in store" };
                 const nodes = Array.isArray(graph.nodes) ? graph.nodes : [];
                 const edges = Array.isArray(graph.edges) ? graph.edges : [];

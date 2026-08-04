@@ -228,9 +228,9 @@
     flex-direction: column;
     gap: 0.75rem;
     background: var(--card-background);
+    width: 100%;
     padding: 1rem;
     border-radius: 0.5rem;
-    min-width: 0;
 }
 
 .chartHeader{
@@ -244,6 +244,7 @@
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(min(100%, 16rem), 1fr));
     gap: 1rem;
+    background: var(--card-background);
 }
 
 .chartBlock,
@@ -376,11 +377,15 @@
     background: var(--primary);
     color: #111;
     border: none;
-    border-radius: 5rem;
-    padding: 0.4rem 1rem;
+    border-radius: 0.5rem;
+    padding: 0.6rem 1rem;
     cursor: pointer;
     font-size: 0.85rem;
     text-wrap: nowrap;
+}
+
+.actionButton:hover{
+    background: var(--primary-hover);
 }
 
 .actionButton:disabled{

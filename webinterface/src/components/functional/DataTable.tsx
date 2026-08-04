@@ -3,7 +3,7 @@ import Style from "./DataTable.module.css"
 
 export default function DataTable(results:any){
     const [currentPage, setCurrentPage] = useState(1);
-    const [rowsPerPage, setRowsPerPage] = useState(10);
+    const [rowsPerPage, setRowsPerPage] = useState(18);
     results = results.results;
     console.log(results);
 
@@ -28,6 +28,11 @@ export default function DataTable(results:any){
 
     const currentRows = [...Array(rowsPerPage)].map((_, rowIndex) => rowIndex + (currentPage - 1) * rowsPerPage < maxRows ? rowIndex + (currentPage - 1) * rowsPerPage : -1);
 
+    const isNumeric = (key: string) => {
+        const dtype = results.summary.dtypes[key];
+        return dtype?.includes("float") || dtype?.includes("int");
+    };
+
     return (<div>
         <div className={Style.controlsContainer}>
             <div className={Style.controls}>
@@ -42,7 +47,7 @@ export default function DataTable(results:any){
                 }} disabled={currentPage === 1}>
                     <i className={"fa-solid fa-left"}/>
                 </button>
-                <span>
+                <span className={"text-[var(--light-highlight)]"}>
                     Page {currentPage} of {totalpages}
                 </span>
                 <button onClick={()=>{
@@ -56,7 +61,7 @@ export default function DataTable(results:any){
                 </button>
             </div>
             <div className={Style.controls}>
-                Rows/page:
+                <span className={"text-[var(--light-highlight)]"}>Rows/page:</span>
                 <input type={"number"} value={rowsPerPage} onChange={(e)=>{
                     if(e.target.value === "") return;
                     setRowsPerPage(Math.max(1,parseInt(e.target.value)))}}
@@ -66,7 +71,11 @@ export default function DataTable(results:any){
         <table className={Style.table}>
             <thead className={Style.headerRow}>
             <tr>
-                {[...data.keys()].map((key, index) => <th key={index}>{key} ({results.summary.dtypes[key]})</th>)}
+                {[...data.keys()].map((key, index) => (
+                    <th key={index} className={isNumeric(key) ? Style.numeric : "flex flex-col"}>
+                        {key} <br/> <span className={"text-[var(--light-highlight)] text-xs"}>({results.summary.dtypes[key]})</span>
+                    </th>
+                ))}
             </tr>
             </thead>
             <tbody>
@@ -75,7 +84,11 @@ export default function DataTable(results:any){
                     if(rowIndex === -1) return null;
                     return (
                         <tr key={rowIndexInPage}>
-                            {[...data.values()].map((arr, index) => <td key={index}>{arr[rowIndex] || '-'}</td>)}
+                            {[...data.entries()].map(([key, arr], index) => (
+                                <td key={index} className={isNumeric(key) ? Style.numeric : ""}>
+                                    {arr[rowIndex] ?? '-'}
+                                </td>
+                            ))}
                         </tr>
                     )
                 })

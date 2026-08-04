@@ -5,11 +5,16 @@
 
 .nav{
     display: flex;
+    flex-direction: row;
     gap: 1rem;
     padding: 1rem;
     justify-content: space-between;
     background-color: var(--card-background);
     border-bottom: 1px solid var(--light-highlight);
+    height: 4.5rem;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    overflow-y: hidden;
 }
 
 .nav button{

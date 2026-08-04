@@ -38,7 +38,6 @@ export async function Request(target: EndPoints, config:ClientConfig, data?:any 
         headers: await authHeaders(config, { "Content-Type": "application/json" }),
         body: JSON.stringify(data)
     }
-    console.log(JSON.stringify(data))
     try{
         const res = await fetch(buildUrl(config, target), request);
         // Parse body even on error status — model edit (and similar) APIs return

@@ -2,6 +2,7 @@
 
 import {getServerSession} from "next-auth";
 import {authOptions} from "@/lib/auth-options";
+import {CLOUD_DISABLED_ERROR, isCloudEnabled} from "@/lib/cloud/enabled";
 import {uploadFile, getFile, deleteFile, type R2FilePayload} from "@/lib/storage/r2bucket";
 import {
     listCloudProjects,
@@ -49,12 +50,14 @@ function toSummary(row: CloudProjectRow): CloudProjectSummary {
 }
 
 export async function listMyCloudProjects(): Promise<CloudProjectSummary[]> {
+    if (!isCloudEnabled()) return [];
     const userId = await requireUserId();
     const rows = await listCloudProjects(userId);
     return rows.map(toSummary);
 }
 
 export async function cloudProjectExistsByName(name: string): Promise<boolean> {
+    if (!isCloudEnabled()) return false;
     const userId = await requireUserId();
     const existing = await findCloudProjectByName(userId, name.trim());
     return !!existing;
@@ -71,6 +74,7 @@ export async function saveMyCloudProject(formData: FormData): Promise<
     | {ok: false; error: string}
 > {
     try {
+        if (!isCloudEnabled()) return {ok: false, error: CLOUD_DISABLED_ERROR};
         const userId = await requireUserId();
         const name = String(formData.get("name") ?? "").trim();
         const description = String(formData.get("description") ?? "");
@@ -111,6 +115,7 @@ export async function downloadMyCloudProject(
     projectId: string,
 ): Promise<{ok: true; fileName: string; payload: R2FilePayload} | {ok: false; error: string}> {
     try {
+        if (!isCloudEnabled()) return {ok: false, error: CLOUD_DISABLED_ERROR};
         const userId = await requireUserId();
         const row = await getCloudProject(userId, projectId);
         if (!row?.cloudPath) return {ok: false, error: "Cloud project not found"};
@@ -134,6 +139,7 @@ export async function deleteMyCloudProject(
     projectId: string,
 ): Promise<{ok: true} | {ok: false; error: string}> {
     try {
+        if (!isCloudEnabled()) return {ok: false, error: CLOUD_DISABLED_ERROR};
         const userId = await requireUserId();
         const row = await removeCloudProject(userId, projectId);
         if (!row) return {ok: false, error: "Cloud project not found"};

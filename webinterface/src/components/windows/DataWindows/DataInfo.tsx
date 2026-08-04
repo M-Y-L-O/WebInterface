@@ -184,7 +184,7 @@ export default function DataInfo() {
                 ))}
             </div>
 
-            {loading && <div className={Style.statusLine}>Loading analysis…</div>}
+
             {error && <div className={Style.errorLine}>{error}</div>}
 
             {tab === "summary" && (
@@ -370,11 +370,7 @@ export default function DataInfo() {
                         </div>
                     )}
 
-                    {chartData?.correlation_heatmap && (
-                        <div className={Style.chartSection}>
-                            <HeatmapChart data={chartData.correlation_heatmap} />
-                        </div>
-                    )}
+
                 </div>
             )}
 

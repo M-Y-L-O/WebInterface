@@ -19,7 +19,10 @@ export function publishSavedModelGraph(args: {
     if (!graph) return;
 
     const projectStore = useProjectStore.getState();
-    projectStore.setVisualisation(graph);
+    const slotKey = sourcePanelId?.startsWith("ModelEditor-")
+        ? sourcePanelId.slice("ModelEditor-".length)
+        : "uploaded_pt2";
+    projectStore.setSlotVisualisation(slotKey, graph);
 
     const project = projectStore.project;
     if (project) {
@@ -31,10 +34,6 @@ export function publishSavedModelGraph(args: {
 
     const api = useDockviewStore.getState().api;
     if (!api) return;
-
-    const slotKey = sourcePanelId?.startsWith("ModelEditor-")
-        ? sourcePanelId.slice("ModelEditor-".length)
-        : null;
     const twinId = slotKey ? `Visualiser-${slotKey}` : null;
 
     const patch = {
@@ -78,7 +77,12 @@ export async function LoadModel(client:Client|null, openVisualizer?: (result:any
         if(!res || res==="undefined" || res === "null" || res===undefined || res.message === "Request failed:")
             throw new Error("Failed to load model: Invalid response" + res)
 
-        useProjectStore.getState().setVisualisation(res);
+        const isOnnx = file.name?.toLowerCase().endsWith(".onnx");
+        if (isOnnx) {
+            useProjectStore.getState().setUploadOnnx(res);
+        } else {
+            useProjectStore.getState().setUploadPt2(res);
+        }
         openVisualizer?.(res, file.name);
         toast.success("Model loaded", {id: toastId, duration: 5000});
     } catch (e) {
@@ -399,7 +403,7 @@ export async function OpenCatalogItem(
                 }
             }
 
-            useProjectStore.getState().setVisualisation(visualisation);
+            useProjectStore.getState().setUploadPt2(visualisation);
             const project = useProjectStore.getState().project;
             if (project) {
                 useProjectStore.getState().setProject({...project, modelData: visualisation});
@@ -417,7 +421,7 @@ export async function OpenCatalogItem(
             });
         } else {
             // onnx → visualiser
-            useProjectStore.getState().setVisualisation(loadRes);
+            useProjectStore.getState().setUploadOnnx(loadRes);
             queuePendingPanel({
                 component: "Visualiser",
                 id: "Visualiser-uploaded_onnx",
@@ -433,9 +437,10 @@ export async function OpenCatalogItem(
         try {
             const activeProject = await client.getProject();
             if (activeProject && !(activeProject instanceof Error) && activeProject.projectData) {
+                const cachedPt2 = useProjectStore.getState().visualisations.uploadedPt2;
                 useProjectStore.getState().hydrateFromProject({
                     ...activeProject,
-                    modelData: useProjectStore.getState().visualisation,
+                    modelData: cachedPt2 ?? activeProject.modelData,
                 });
             }
         } catch {

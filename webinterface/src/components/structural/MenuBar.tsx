@@ -5,6 +5,7 @@ import {useClientStore, useDockviewStore} from "@/lib/store";
 import {LoadModel, LoadCSV, SaveProject, SaveProjectToCloud, OpenProject} from "@/lib/windows/Actions";
 import Style from "./MenuBar.module.css"
 import {AnimatePresence, motion} from "framer-motion";
+import {addWindow} from "@/lib/windows/windowActions";
 
 
 interface ActionButton{
@@ -14,7 +15,7 @@ interface ActionButton{
 }
 
 
-export default function MenuBar(){
+export default function MenuBar({cloudEnabled = true}:{cloudEnabled?: boolean}){
     const client = useClientStore(state => state.client);
 
     const router = useRouter();
@@ -23,55 +24,45 @@ export default function MenuBar(){
 
 
     const api = useDockviewStore(state => state.api);
-    function openPanel(component:string, id:string, title:string, params?:Record<string, unknown>){
-        if(!api)
-            return;
 
-        const existing = api.getPanel(id);
-        if(existing){
-            existing.api.setActive();
-            return;
+    const projectChildren: ActionButton[] = [
+        {
+            label:"Save Project",
+            onClick:()=>SaveProject(client)
+        },
+        ...(cloudEnabled ? [{
+            label:"Save to Cloud",
+            onClick: async () => {
+                const result = await SaveProjectToCloud(client);
+                if (result === "needs_overwrite") {
+                    if (window.confirm("A cloud project with this name already exists. Overwrite it?")) {
+                        await SaveProjectToCloud(client, {overwrite: true});
+                    }
+                }
+            }
+        } satisfies ActionButton] : []),
+        {
+            label:"Open Project",
+            onClick:()=>OpenProject(client)
         }
-
-        api.addPanel({id, component, title, params} as any);
-    }
-
-    function addWindow(window:string, title?:string){
-        openPanel(window, window, title || window)
-    }
+    ];
 
     const MenuButtons:ActionButton[] = [
         {
             label:"Project",
+            children: projectChildren
+        },
+        {
+            label:"Data Tools",
             children:[
                 {
-                    label:"Save Project",
-                    onClick:()=>SaveProject(client)
+                    label:"Dataset Info",
+                    onClick:()=>addWindow(api,"DataInfo")
                 },
                 {
-                    label:"Save to Cloud",
-                    onClick: async () => {
-                        const result = await SaveProjectToCloud(client);
-                        if (result === "needs_overwrite") {
-                            if (window.confirm("A cloud project with this name already exists. Overwrite it?")) {
-                                await SaveProjectToCloud(client, {overwrite: true});
-                            }
-                        }
-                    }
+                    label:"Data viewer",
+                    onClick:()=>addWindow(api,"DataViewer")
                 },
-                {
-                    label:"Open Project",
-                    onClick:()=>OpenProject(client)
-                },
-                {
-                    label:"Load Model",
-                    onClick:()=>LoadModel(client)
-
-                },
-                {
-                    label:"Load CSV",
-                    onClick:()=>LoadCSV(client)
-                }
             ]
         },
         {
@@ -79,26 +70,18 @@ export default function MenuBar(){
             children:[
                 {
                     label:"Project Manager",
-                    onClick:()=>addWindow("FileExplorer", "Project Manager")
-                },
-                {
-                    label:"Dataset Info",
-                    onClick:()=>addWindow("DataInfo")
-                },
-                {
-                    label:"Data viewer",
-                    onClick:()=>addWindow("DataViewer")
+                    onClick:()=>addWindow(api,"FileExplorer", "Project Manager")
                 },
                 {
                     label:"Properties",
-                    onClick:()=>addWindow("Properties")
-                },
-                {
-                    label:"AI Assistant",
-                    onClick:()=>addWindow("Chat", "AI Assistant")
+                    onClick:()=>addWindow(api,"Properties")
                 },
             ]
         },
+        {
+            label:"AI Assistant",
+            onClick:()=>addWindow(api,"Chat", "AI Assistant")
+        }
     ]
 
     const dropdownVariants = {
@@ -109,9 +92,9 @@ export default function MenuBar(){
 
     return (
         <nav className={Style.container}>
-            <button className={Style.homeButton} onClick={()=>{router.push("/home")}}>
-                <img src={"/logo.svg"}/>
-            </button>
+            <div className={Style.homeButton} >
+                <img src={"/logo.svg"} onClick={()=>{router.push("/")}}/>
+            </div>
                 <motion.div className={Style.menuHolder} initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}} transition={{duration:0.2}} onMouseEnter={()=>{setHoveredIndex(null)}}>
                 {
                     MenuButtons.map((button, index)=>{

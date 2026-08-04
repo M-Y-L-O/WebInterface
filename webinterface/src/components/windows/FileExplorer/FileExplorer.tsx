@@ -1,8 +1,9 @@
 "use client"
 
-import {useEffect, useMemo, useState} from "react";
+import React, {useEffect, useMemo, useState} from "react";
 import {IDockviewPanelProps} from "dockview-core";
 import {useClientStore, useDockviewStore, useProjectStore} from "@/lib/store";
+import {SLOT_TO_VIZ_KEY} from "@/lib/store/projectStore";
 import {toast} from "sonner";
 import Style from "./FileExplorer.module.css"
 import {LoadCSV} from "@/lib/windows/Actions";
@@ -10,6 +11,7 @@ import {EditorTemplate, SlotDescriptor} from "./types";
 import {defaultSlots, mergeSlots} from "./helpers";
 import SlotCard from "./SlotCard";
 import TemplatePicker from "./TemplatePicker";
+import {addWindow} from "@/lib/windows/windowActions";
 
 function normalizeTemplates(payload: any): EditorTemplate[] {
     const raw = payload?.templates ?? payload;
@@ -39,12 +41,12 @@ export default function FileExplorer(_props: IDockviewPanelProps) {
     const client = useClientStore(state => state.client);
     const api = useDockviewStore(state => state.api);
     const project = useProjectStore(state => state.project);
+    const visualisations = useProjectStore(state => state.visualisations);
     const projectName = project?.projectData?.name ?? "No project loaded";
     const csvFile = project?.projectData?.csvFile ?? "";
 
     const [slots, setSlots] = useState<SlotDescriptor[]>(defaultSlots);
     const [loading, setLoading] = useState(false);
-    const [openSlot, setOpenSlot] = useState<string | null>(null);
     const [templatePickerSlot, setTemplatePickerSlot] = useState<SlotDescriptor | null>(null);
     const [templates, setTemplates] = useState<EditorTemplate[]>([]);
     const [templatesLoading, setTemplatesLoading] = useState(false);
@@ -74,10 +76,15 @@ export default function FileExplorer(_props: IDockviewPanelProps) {
 
     useEffect(() => {
         refreshSlots();
-    }, [client]);
+    }, [client, project]);
 
     const uploadedSlots = useMemo(() => slots.filter((slot) => slot.section === "uploaded"), [slots]);
     const optimizedSlots = useMemo(() => slots.filter((slot) => slot.section === "optimized"), [slots]);
+
+    function slotVisualisation(slot: SlotDescriptor) {
+        const key = SLOT_TO_VIZ_KEY[slot.key];
+        return key ? visualisations[key] : null;
+    }
 
     function openVisualiser(slot: SlotDescriptor, visualization: any) {
         if (!api) {
@@ -107,6 +114,15 @@ export default function FileExplorer(_props: IDockviewPanelProps) {
                 visualisation: visualization,
             },
         } as any);
+    }
+
+    function openCachedVisualiser(slot: SlotDescriptor) {
+        const cached = slotVisualisation(slot);
+        if (!cached) {
+            void visualiseSlot(slot);
+            return;
+        }
+        openVisualiser(slot, cached);
     }
 
     function openModelEditor(slot: SlotDescriptor, descriptor?: any) {
@@ -201,6 +217,8 @@ export default function FileExplorer(_props: IDockviewPanelProps) {
                 throw new Error((res as any)?.error || "Upload failed");
             }
 
+            // Clear stale graph for this slot — file changed.
+            useProjectStore.getState().clearVisualisation(slot.key);
             await refreshSlots();
             toast.success(`${slot.name} uploaded`, {id: toastId, duration: 4000});
         } catch (error) {
@@ -209,8 +227,14 @@ export default function FileExplorer(_props: IDockviewPanelProps) {
         }
     }
 
-    async function visualiseSlot(slot: SlotDescriptor) {
+    async function visualiseSlot(slot: SlotDescriptor, opts?: { forceRefresh?: boolean }) {
         if (!client) {
+            return;
+        }
+
+        const cached = slotVisualisation(slot);
+        if (cached && !opts?.forceRefresh) {
+            openVisualiser(slot, cached);
             return;
         }
 
@@ -218,9 +242,9 @@ export default function FileExplorer(_props: IDockviewPanelProps) {
         try {
             let res: any = null;
 
-            // Uploaded models are edited via descriptor.json — prefer that over
+            // Uploaded PT2 is edited via descriptor.json — prefer that over
             // re-analysing the binary (which can overwrite a just-saved edit).
-            if (slot.section === "uploaded") {
+            if (slot.key === "uploaded_pt2") {
                 const descRes = await client.getModelDescriptor();
                 if (descRes && !(descRes instanceof Error) && (descRes as any)?.descriptor) {
                     res = await client.visualizeModel({
@@ -237,9 +261,9 @@ export default function FileExplorer(_props: IDockviewPanelProps) {
                 throw new Error((res as any)?.error || "Failed to visualise file");
             }
 
-            useProjectStore.getState().setVisualisation(res);
+            useProjectStore.getState().setSlotVisualisation(slot.key, res);
             const project = useProjectStore.getState().project;
-            if (project && slot.section === "uploaded") {
+            if (project && slot.key === "uploaded_pt2") {
                 useProjectStore.getState().setProject({
                     ...project,
                     modelData: res,
@@ -332,6 +356,7 @@ export default function FileExplorer(_props: IDockviewPanelProps) {
                 throw new Error((res as any)?.error || "Failed to create PT2");
             }
 
+            useProjectStore.getState().clearVisualisation(slot.key);
             await refreshSlots();
 
             // Prefer the agent-canonical descriptor after load
@@ -380,6 +405,9 @@ export default function FileExplorer(_props: IDockviewPanelProps) {
                 throw new Error((res as any)?.error || "Failed to generate ONNX");
             }
 
+            // New ONNX artifact — drop any stale uploaded ONNX graph.
+            useProjectStore.getState().clearVisualisation("uploaded_onnx");
+
             if (Array.isArray((res as any).files)) {
                 setSlots(mergeSlots(defaultSlots, (res as any).files));
             } else {
@@ -410,53 +438,60 @@ export default function FileExplorer(_props: IDockviewPanelProps) {
                 <div className="border-b border-[var(--light-highlight)]/70 pb-1 ">
                     <h2 className="text-lg font-semibold">Uploaded</h2>
                 </div>
-                {uploadedSlots.map((slot) => (
-                    <SlotCard
-                        key={slot.key}
-                        slot={slot}
-                        openSlot={openSlot}
-                        setOpenSlot={setOpenSlot}
-                        visualiseSlot={visualiseSlot}
-                        openOptimization={openOptimization}
-                        openDiagnostics={openDiagnostics}
-                        downloadSlot={downloadSlot}
-                        editPt2={editPt2}
-                        createNewPt2={openNewPt2Picker}
-                        uploadSlot={uploadSlot}
-                        generateOnnxFromPt2={generateOnnxFromPt2}
-                        canGenerateOnnx={pt2Exists}
-                    />
-                ))}
+                <div className={Style.cardHolder}>
+                    {uploadedSlots.map((slot) => (
+                        <SlotCard
+                            key={slot.key}
+                            slot={slot}
+                            visualisation={slotVisualisation(slot)}
+                            visualiseSlot={visualiseSlot}
+                            openCachedVisualiser={openCachedVisualiser}
+                            openOptimization={openOptimization}
+                            openDiagnostics={openDiagnostics}
+                            downloadSlot={downloadSlot}
+                            editPt2={editPt2}
+                            createNewPt2={openNewPt2Picker}
+                            uploadSlot={uploadSlot}
+                            generateOnnxFromPt2={generateOnnxFromPt2}
+                            canGenerateOnnx={pt2Exists}
+                        />
+                    ))}
+                </div>
             </section>
 
             <section className={Style.section}>
                 <div className="border-b border-[var(--light-highlight)]/70 pb-1 ">
                     <h2 className="text-lg font-semibold">Optimized</h2>
                 </div>
-                {optimizedSlots.map((slot) => (
-                    <SlotCard
-                        key={slot.key}
-                        slot={slot}
-                        openSlot={openSlot}
-                        setOpenSlot={setOpenSlot}
-                        visualiseSlot={visualiseSlot}
-                        openOptimization={openOptimization}
-                        openDiagnostics={openDiagnostics}
-                        downloadSlot={downloadSlot}
-                        editPt2={editPt2}
-                        createNewPt2={openNewPt2Picker}
-                        uploadSlot={uploadSlot}
-                    />
-                ))}
+                <div className={Style.cardHolder}>
+                    {optimizedSlots.map((slot) => (
+                        <SlotCard
+                            key={slot.key}
+                            slot={slot}
+                            visualisation={slotVisualisation(slot)}
+                            visualiseSlot={visualiseSlot}
+                            openCachedVisualiser={openCachedVisualiser}
+                            openOptimization={openOptimization}
+                            openDiagnostics={openDiagnostics}
+                            downloadSlot={downloadSlot}
+                            editPt2={editPt2}
+                            createNewPt2={openNewPt2Picker}
+                            uploadSlot={uploadSlot}
+                        />
+                    ))}
+                </div>
             </section>
             <section className={`p-[1rem] w-full`}>
-                <div className="border-b border-[var(--light-highlight)]/70 pb-1 ">
+                <div className="border-b border-[var(--light-highlight)]/70 pb-1 mb-4">
                     <h2 className="text-lg font-semibold">CSV Data</h2>
                 </div>
                 <div className={"bg-[var(--background)]  px-4 py-2 rounded-lg flex justify-between items-center"}>
                     <h2>{csvFile || "No dataset"}</h2>
-                    <div>
-                        <button className={Style.menuButton} onClick={() => LoadCSV(client)}>Load CSV</button>
+                    <div className={"flex gap-2"}>
+                        <button className={Style.menuButton} onClick={()=>{addWindow(api, "DataViewer")}}> View <i className={"fa-solid fa-eye"}></i></button>
+                        <button className={Style.menuButton} onClick={()=>{addWindow(api, "DataInfo")}}> Dataset Info <i className={"fa-solid fa-chart-bar"}/> </button>
+
+                        <button className={Style.menuButton} onClick={() => LoadCSV(client)}>Load CSV <i className="fa-solid fa-upload" /></button>
                     </div>
                 </div>
             </section>

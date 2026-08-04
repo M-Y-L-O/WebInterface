@@ -12,7 +12,7 @@ import {
 import Style from "./page.module.css"
 
 
-export default function ProjectsPage({activeConfig, clientStatus, onStatusClick}:{activeConfig:ClientConfig, clientStatus:string, onStatusClick:()=>void}) {
+export default function ProjectsPage({activeConfig, clientStatus, onStatusClick, cloudEnabled = true}:{activeConfig:ClientConfig, clientStatus:string, onStatusClick:()=>void, cloudEnabled?: boolean}) {
     const [newProjectForm, setNewProjectForm] = useState<boolean>(false);
     const [newProjectName, setNewProjectName] = useState<string>("");
     const [userName, setUserName] = useState<string>("");
@@ -26,13 +26,17 @@ export default function ProjectsPage({activeConfig, clientStatus, onStatusClick}
     const router = useRouter();
 
     const refreshCloudProjects = useCallback(async () => {
+        if (!cloudEnabled) {
+            setCloudProjects([]);
+            return;
+        }
         try {
             const rows = await listMyCloudProjects();
             setCloudProjects(rows);
         } catch {
             setCloudProjects([]);
         }
-    }, []);
+    }, [cloudEnabled]);
 
     async function loadActiveProject(client:any){
         const project = await client.getProject();
@@ -186,17 +190,19 @@ export default function ProjectsPage({activeConfig, clientStatus, onStatusClick}
                                 <h2>CSV file : {activeProject.projectData.csvFile ? activeProject.projectData.csvFile:"No dataset"}</h2>
                             </div>
                             <div className={"flex justify-start items-center gap-2 flex-col h-full"}>
-                                <button
-                                    className={Style.editButton}
-                                    disabled={cloudBusy || clientStatus !== "Connected"}
-                                    title="Save to cloud"
-                                    onClick={(e)=>{
-                                        e.stopPropagation();
-                                        saveActiveToCloud(false);
-                                    }}
-                                >
-                                    <i className={"fa-solid fa-cloud-arrow-up"}/>
-                                </button>
+                                {cloudEnabled && (
+                                    <button
+                                        className={Style.editButton}
+                                        disabled={cloudBusy || clientStatus !== "Connected"}
+                                        title="Save to cloud"
+                                        onClick={(e)=>{
+                                            e.stopPropagation();
+                                            saveActiveToCloud(false);
+                                        }}
+                                    >
+                                        <i className={"fa-solid fa-cloud-arrow-up"}/>
+                                    </button>
+                                )}
 
                             </div>
                         </div> :
@@ -211,6 +217,8 @@ export default function ProjectsPage({activeConfig, clientStatus, onStatusClick}
                             }}>Create a new project <i className={"fa-solid fa-plus"}/> </button>
                         </div>
                 }
+                {cloudEnabled && (
+                    <>
                 <h1 className={Style.title}>Cloud Saved:</h1>
                 <div className={`${Style.list} ml-[1rem]`}>
                     {cloudProjects.length === 0 ? (
@@ -248,6 +256,8 @@ export default function ProjectsPage({activeConfig, clientStatus, onStatusClick}
                         ))
                     )}
                 </div>
+                    </>
+                )}
             </div>
             {
                 newProjectForm &&

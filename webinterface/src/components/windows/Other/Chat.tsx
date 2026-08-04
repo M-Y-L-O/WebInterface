@@ -5,8 +5,11 @@ import { buildProjectContextSnapshot } from "@/lib/ai/projectContext";
 import { executeAiTool } from "@/lib/ai/executeTool";
 import type { AiChatResponse, AiContent, ChatMessage } from "@/lib/ai/types";
 import Style from "./Chat.module.css";
+import {addWindow} from "@/lib/windows/windowActions";
 
 import MarkDownPreview from "@uiw/react-markdown-preview"
+import Dropdown from "@/components/structural/Dropdown";
+import {useDockviewStore} from "@/lib/store";
 
 const MAX_TOOL_ROUNDS = 12;
 
@@ -14,13 +17,14 @@ function uid() {
     return `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
 }
 
-async function callGemini(contents: AiContent[]): Promise<AiChatResponse> {
+async function callGemini(contents: AiContent[], model?:string): Promise<AiChatResponse> {
     const res = await fetch("/api/ai/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
             contents,
             projectContext: buildProjectContextSnapshot(),
+            model: model,
         }),
     });
 
@@ -43,15 +47,49 @@ export default function Chat() {
     const [input, setInput] = useState("");
     const [busy, setBusy] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [models, setModels] = useState<string[] | null>(null);
+    const [internalNames, setInternalNames] = useState<string[]>([]);
+    const [model, setModel] = useState<string | null>(null);
+    const [activeInternal, setActiveInternal] = useState<string | null>(null);
     const scrollerRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLTextAreaElement>(null);
     const historyRef = useRef<AiContent[]>([]);
+
+    const api = useDockviewStore(state => state.api);
 
     useEffect(() => {
         const el = scrollerRef.current;
         if (!el) return;
         el.scrollTop = el.scrollHeight;
     }, [messages, busy]);
+
+    useEffect(() => {
+        fetchModels();
+    }, []);
+
+    async function fetchModels(){
+        const res = await fetch("/api/ai/chat", {
+            method: "GET",
+            headers: { "Content-Type": "application/json" },
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+            throw new Error(data?.error || `Model request failed (${res.status})`);
+        }
+        let _models:string[] = [], _internal:string[] = [];
+        if(data.models && data.models.pageInternal){
+            data.models.pageInternal.forEach((m:any)=>{
+                console.log(m);
+                if(m.supportedActions.some((r:string) => r==="generateContent"))
+                _models.push(m.displayName);
+                _internal.push(m.name.split("/")[1])
+            })
+        }
+
+        setModels(_models);
+        setInternalNames(_internal);
+        setModel(_models[0]);
+    }
 
     async function runAgent(userText: string) {
         setBusy(true);
@@ -182,28 +220,41 @@ export default function Chat() {
     return (
         <div className={Style.container}>
             <header className={Style.header}>
-                <div>
+                <div className={"flex flex-col items-center justify-center"}>
                     <h1>MYLO Assistant</h1>
+                    { models && model &&
+                    <Dropdown options={models} defaultValue={model} onChange={(e)=>{
+                        setModel(e);
+                        setActiveInternal(internalNames[models?.indexOf(e)!]);
+
+                    }} small={true}/>
+                    }
                 </div>
-                <button
-                    type="button"
-                    className={Style.clearBtn}
-                    disabled={busy}
-                    onClick={() => {
-                        historyRef.current = [];
-                        setMessages([
-                            {
-                                id: "welcome",
-                                role: "assistant",
-                                content:
-                                    "Chat cleared. What would you like to do next?",
-                            },
-                        ]);
-                        setError(null);
-                    }}
-                >
-                    Clear
-                </button>
+                <div className={"flex flex-row items-center justify-center gap-5"}>
+                    <button
+                        type="button"
+                        className={Style.clearBtn}
+                        disabled={busy}
+                        title={"New Chat"}
+                        onClick={() => {
+                            historyRef.current = [];
+                            setMessages([
+                                {
+                                    id: "welcome",
+                                    role: "assistant",
+                                    content:
+                                        "New chat. What would you like to do next?",
+                                },
+                            ]);
+                            setError(null);
+                        }}
+                    >
+                        <i className={"fa-solid fa-plus"}/>
+                    </button>
+                    <button className={Style.clearBtn} onClick={()=>{addWindow(api, "Settings")}} title={"Api Key Settings"}>
+                        <i className={"fa-solid fa-key"} />
+                    </button>
+                </div>
             </header>
 
             <div className={Style.messages} ref={scrollerRef}>

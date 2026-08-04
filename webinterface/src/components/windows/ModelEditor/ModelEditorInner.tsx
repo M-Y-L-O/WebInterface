@@ -70,7 +70,7 @@ type ApiErrorCode =
 export default function ModelEditorInner(props: IDockviewPanelProps) {
     const client = useClientStore((state) => state.client);
     const { setSelected, setVisualisation } = useInspectablePanel(props.api);
-    const { screenToFlowPosition } = useReactFlow();
+    const { screenToFlowPosition, fitView } = useReactFlow();
 
     const panelParams = (props as any).params || {};
     const initialDescriptor = panelParams.descriptor;
@@ -78,6 +78,12 @@ export default function ModelEditorInner(props: IDockviewPanelProps) {
 
     // --- Core state ---
     const [descriptor, setDescriptor] = useState<any>(initialDescriptor || null);
+    const descriptorRef = useRef<any>(initialDescriptor || null);
+    const panelDescriptorSyncedRef = useRef(false);
+    const setDescriptorState = useCallback((next: any) => {
+        descriptorRef.current = next;
+        setDescriptor(next);
+    }, []);
     const [catalog, setCatalog] = useState<Catalog | null>(null);
     const [viewMode, setViewMode] = useState<ViewMode>("summary");
     const [expandedNodes, setExpandedNodes] = useState<string[]>([]);
@@ -124,6 +130,39 @@ export default function ModelEditorInner(props: IDockviewPanelProps) {
     useEffect(() => {
         setDescriptorDraft(descriptor);
     }, [descriptor, setDescriptorDraft]);
+
+    // When the panel is reopened with updated params, reload from the agent.
+    useEffect(() => {
+        if (!client) return;
+        const panelDescriptor = (props as any).params?.descriptor;
+        if (!panelDescriptor) return;
+
+        if (!panelDescriptorSyncedRef.current) {
+            panelDescriptorSyncedRef.current = true;
+            return;
+        }
+
+        void (async () => {
+            try {
+                const descRes = await client.getModelDescriptor();
+                if (!descRes || descRes instanceof Error || !(descRes as any)?.descriptor) return;
+                const nextDescriptor = (descRes as any).descriptor;
+                setDescriptorState(nextDescriptor);
+                const graphRes = await client.visualizeModel({
+                    descriptor: nextDescriptor,
+                    viewMode,
+                    expandedNodes,
+                });
+                if (!(graphRes instanceof Error) && !(graphRes as any)?.error) {
+                    if ((graphRes as any)?.shapes) setShapes((graphRes as any).shapes);
+                    await renderGraph(graphRes, { relayout: true });
+                }
+            } catch {
+                // Ignore reload errors on param refresh
+            }
+        })();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [(props as any).params?.descriptor, client]);
 
     // Clear draft when the editor panel is unmounted.
     useEffect(() => {
@@ -248,7 +287,7 @@ export default function ModelEditorInner(props: IDockviewPanelProps) {
     // ---------------------------------------------------------------------------
     async function loadInitial() {
         if (!client) {
-            setDescriptor(defaultEmptyDescriptor());
+            setDescriptorState(defaultEmptyDescriptor());
             await renderGraph({ nodes: [], edges: [], summary: {} }, { relayout: true });
             return;
         }
@@ -257,7 +296,7 @@ export default function ModelEditorInner(props: IDockviewPanelProps) {
         try {
             const [catRes, descRes] = await Promise.all([
                 client.getEditorCatalog(),
-                descriptor ? { descriptor } : client.getModelDescriptor(),
+                client.getModelDescriptor(),
             ]);
 
             if (catRes && !(catRes instanceof Error)) {
@@ -275,8 +314,8 @@ export default function ModelEditorInner(props: IDockviewPanelProps) {
             }
 
             const desc =
-                (descRes as any)?.descriptor || descriptor || defaultEmptyDescriptor();
-            setDescriptor(desc);
+                (descRes as any)?.descriptor || defaultEmptyDescriptor();
+            setDescriptorState(desc);
 
             const graphRes = await client.visualizeModel({
                 descriptor: desc,
@@ -295,7 +334,7 @@ export default function ModelEditorInner(props: IDockviewPanelProps) {
                 description: e?.message || "Unknown error",
             });
             const fallback = defaultEmptyDescriptor();
-            setDescriptor(fallback);
+            setDescriptorState(fallback);
             if (client) {
                 const graphRes = await client.visualizeModel({
                     descriptor: fallback,
@@ -319,7 +358,7 @@ export default function ModelEditorInner(props: IDockviewPanelProps) {
     // Keep the canvas in sync when the AI assistant mutates the model via tools.
     useEffect(() => {
         return onModelEdited((detail) => {
-            if (detail.descriptor) setDescriptor(detail.descriptor);
+            if (detail.descriptor) setDescriptorState(detail.descriptor);
             if (detail.shapes) setShapes(detail.shapes as Record<string, any>);
             if (detail.graph) {
                 void renderGraph(detail.graph);
@@ -404,9 +443,10 @@ export default function ModelEditorInner(props: IDockviewPanelProps) {
         if (!client) return;
         setBusy(true);
         const toastId = toast.loading("Applying…");
+        const currentDescriptor = descriptorRef.current;
         try {
             const res = await client.editModel({
-                descriptor,
+                descriptor: currentDescriptor,
                 operation,
                 payload,
                 persist,
@@ -420,7 +460,7 @@ export default function ModelEditorInner(props: IDockviewPanelProps) {
                 return;
             }
 
-            if ((res as any)?.descriptor) setDescriptor((res as any).descriptor);
+            if ((res as any)?.descriptor) setDescriptorState((res as any).descriptor);
             if ((res as any)?.graph) await renderGraph((res as any).graph);
             if ((res as any)?.shapes) setShapes((res as any).shapes);
             // After a successful edit, re-enable undo
@@ -447,7 +487,7 @@ export default function ModelEditorInner(props: IDockviewPanelProps) {
         if (!client || !selectedNodeId) return;
         try {
             const res = await client.previewEdit({
-                descriptor,
+                descriptor: descriptorRef.current,
                 operation: "update_node",
                 payload: { nodeId: selectedNodeId, type: nodeTypeDraft, params },
                 viewMode,
@@ -456,7 +496,7 @@ export default function ModelEditorInner(props: IDockviewPanelProps) {
 
             if (!res || res instanceof Error || (res as any)?.success === false) return;
 
-            // Optimistic update: apply preview graph to canvas without persisting descriptor
+            if ((res as any)?.descriptor) setDescriptorState((res as any).descriptor);
             if ((res as any)?.graph) await renderGraph((res as any).graph);
             if ((res as any)?.shapes) setShapes((res as any).shapes);
         } catch {
@@ -478,7 +518,7 @@ export default function ModelEditorInner(props: IDockviewPanelProps) {
                 handleApiError(code, message, toastId);
                 return;
             }
-            if ((res as any)?.descriptor) setDescriptor((res as any).descriptor);
+            if ((res as any)?.descriptor) setDescriptorState((res as any).descriptor);
             if ((res as any)?.graph) await renderGraph((res as any).graph);
             if ((res as any)?.shapes) setShapes((res as any).shapes);
             setCanRedo(true);
@@ -501,7 +541,7 @@ export default function ModelEditorInner(props: IDockviewPanelProps) {
                 handleApiError(code, message, toastId);
                 return;
             }
-            if ((res as any)?.descriptor) setDescriptor((res as any).descriptor);
+            if ((res as any)?.descriptor) setDescriptorState((res as any).descriptor);
             if ((res as any)?.graph) await renderGraph((res as any).graph);
             if ((res as any)?.shapes) setShapes((res as any).shapes);
             setCanUndo(true);
@@ -547,14 +587,14 @@ export default function ModelEditorInner(props: IDockviewPanelProps) {
         const toastId = toast.loading("Saving…");
         try {
             const res = await client.saveModelDescriptor({
-                descriptor,
+                descriptor: descriptorRef.current,
                 viewMode,
                 expandedNodes,
             });
             if (!res || res instanceof Error || (res as any)?.success === false) {
                 throw new Error((res as any)?.error?.message || "Save failed");
             }
-            if ((res as any)?.descriptor) setDescriptor((res as any).descriptor);
+            if ((res as any)?.descriptor) setDescriptorState((res as any).descriptor);
             if ((res as any)?.graph) await renderGraph((res as any).graph);
 
             // Propagate saved model to project store + open Visualiser panels
@@ -579,13 +619,13 @@ export default function ModelEditorInner(props: IDockviewPanelProps) {
         setBusy(true);
         const toastId = toast.loading("Validating…");
         try {
-            const res = await client.validateModelDescriptor(descriptor);
+            const res = await client.validateModelDescriptor(descriptorRef.current);
             if (!res || res instanceof Error) throw new Error("Validation request failed");
             if (!(res as any)?.valid) {
                 throw new Error((res as any)?.error?.message || "Invalid descriptor");
             }
             if ((res as any)?.descriptor) {
-                setDescriptor((res as any).descriptor);
+                setDescriptorState((res as any).descriptor);
                 const graphRes = await client.visualizeModel({
                     descriptor: (res as any).descriptor,
                     viewMode,
@@ -632,6 +672,30 @@ export default function ModelEditorInner(props: IDockviewPanelProps) {
             await renderGraph(graphRes, { relayout: true });
         } catch (e: any) {
             toast.error("Failed to change view", { description: e?.message });
+        } finally {
+            setBusy(false);
+        }
+    }
+
+    async function AutoArangeGraph(){
+        if (!client) return;
+        const graph = lastGraphRef.current;
+        if (!graph) return;
+
+        setBusy(true);
+        try {
+            await renderGraph(graph, { relayout: true });
+
+            // Ensure the camera updates after node positions settle.
+            requestAnimationFrame(() => {
+                try {
+                    fitView({ padding: 0.12, duration: 200 });
+                } catch {
+                    fitView({ padding: 0.12 });
+                }
+            });
+        } catch (e: any) {
+            toast.error("Auto-arrange failed", { description: e?.message });
         } finally {
             setBusy(false);
         }
@@ -1013,18 +1077,27 @@ export default function ModelEditorInner(props: IDockviewPanelProps) {
                     >
                         Hybrid
                     </button>
+                    <button
+                        onClick={() => void AutoArangeGraph()}
+                        disabled={busy || !client}
+                        title="Auto-Arrange nodes"
+                        className="opacity-70 hover:opacity-100 disabled:opacity-30 transition text-sm px-2"
+                    >
+                        <i className="fa-solid fa-arrows-rotate" />
+                    </button>
 
                     <div className="mx-1 h-5 w-px bg-[var(--light-highlight)]/90" />
 
-                    <button onClick={validateDescriptor} disabled={busy || !client}>
-                        Validate
+                    <button onClick={validateDescriptor} disabled={busy || !client} title={"Validate descriptor"}>
+                        <i className="fa-solid fa-check"></i>
                     </button>
                     <button
                         onClick={saveDescriptor}
                         disabled={busy || !client}
                         className={Style.save}
+                        title="Save model"
                     >
-                        Save
+                        <i className="fa-solid fa-floppy-disk"></i>
                     </button>
                 </div>
             </div>

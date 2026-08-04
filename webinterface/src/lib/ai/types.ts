@@ -18,6 +18,7 @@ export type AiContent = {
 export type AiChatRequest = {
     contents: AiContent[];
     projectContext?: string;
+    model?: string;
 };
 
 export type AiFunctionCall = {

@@ -95,7 +95,19 @@ export const useClientStore = create<ClientStore>()(
         {
             name: "mylo-client",
             storage: createJSONStorage(() => sessionStorage),
-            partialize: (state) => ({ config: state.config }),
+            // Never persist apiKey — reload from server-owned getConfigs after login.
+            partialize: (state) => ({
+                config: state.config
+                    ? {
+                          name: state.config.name,
+                          type: state.config.type,
+                          address: state.config.address,
+                          apiKey: "",
+                          dbId: state.config.dbId,
+                          sessionId: state.config.sessionId,
+                      }
+                    : null,
+            }),
             onRehydrateStorage: () => (state) => {
                 if (!state?.config) return;
                 // Client instances are not serializable — rebuild after rehydrate.

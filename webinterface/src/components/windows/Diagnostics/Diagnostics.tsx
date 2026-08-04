@@ -273,9 +273,10 @@ function TrainingSection({report}: {report: ModelDiagnosticsReport}) {
 
     const w = 320;
     const h = 56;
-    const trainPath = sparkPath(train, w, h);
-    const valPath = sparkPath(val, w, h);
+    const trainPath = sparkPath(train as number[], w, h);
+    const valPath = sparkPath(val as number[], w, h);
 
+    // @ts-ignore
     return (
         <div className={Styles.section}>
             <h2>Training & validation</h2>
@@ -325,8 +326,8 @@ function TrainingSection({report}: {report: ModelDiagnosticsReport}) {
                 </div>
             )}
 
-            {validation?.reason && !validation.available && (
-                <p className={Styles.emptyHint}>{String(validation.reason)}</p>
+            {Boolean(validation?.reason) && !validation?.available && (
+                <p className={Styles.emptyHint}>{String(validation!.reason)}</p>
             )}
         </div>
     );

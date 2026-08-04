@@ -1,4 +1,4 @@
-import {pgTable, text, timestamp, boolean} from "drizzle-orm/pg-core";
+import {pgTable, text, timestamp, boolean, uniqueIndex} from "drizzle-orm/pg-core";
 import {users} from "@/db/schemas/nextAuth";
 
 export const userSettings = pgTable("usersettings", {
@@ -8,6 +8,31 @@ export const userSettings = pgTable("usersettings", {
     language: text("language").notNull().default("en"),
     lastUsed: timestamp("lastUsed", {mode: "date"}).notNull().defaultNow(),
 })
+
+/**
+ * Bring-your-own LLM key (encrypted at rest via envelope encryption).
+ * Never select ciphertext columns in list/metadata queries exposed to the client.
+ */
+export const userLlmKeys = pgTable("userllmkeys", {
+    id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+    userId: text("userId").notNull().references(() => users.id, { onDelete: "cascade" }),
+    /** gemini | … */
+    provider: text("provider").notNull().default("gemini"),
+    ciphertext: text("ciphertext").notNull(),
+    iv: text("iv").notNull(),
+    authTag: text("authTag").notNull(),
+    wrappedDek: text("wrappedDek").notNull(),
+    /** local | kms */
+    kekProvider: text("kekProvider").notNull(),
+    keyFingerprint: text("keyFingerprint").notNull(),
+    /** active | invalid */
+    status: text("status").notNull().default("active"),
+    verifiedAt: timestamp("verifiedAt", { mode: "date" }),
+    createdAt: timestamp("createdAt", { mode: "date" }).notNull().defaultNow(),
+    updatedAt: timestamp("updatedAt", { mode: "date" }).notNull().defaultNow(),
+}, (t) => [
+    uniqueIndex("userllmkeys_user_provider_uidx").on(t.userId, t.provider),
+])
 
 export const clientConfigs = pgTable("clientconfigs", {
     id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),

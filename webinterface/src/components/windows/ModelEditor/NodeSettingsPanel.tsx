@@ -352,11 +352,11 @@ export default function NodeSettingsPanel({
                                         Apply Changes
                                     </button>
                                     <button
-                                        className="rounded-[0.5rem] border-2 border-red-500/30 hover:border-red-500/60 bg-red-950/20 hover:bg-red-950/40 text-red-400 px-[1rem] py-[0.5rem] text-xs transition w-[10rem]"
+                                        className="rounded-[0.5rem] border-2 border-red-500/30 hover:border-red-500/60 bg-red-950/20 hover:bg-red-950/40 text-red-400 px-[1rem] py-[0.5rem] text-xs transition w-[4rem]"
                                         disabled={busy || !client}
                                         onClick={onDeleteNode}
                                     >
-                                        Delete
+                                        <i className="fa-solid fa-trash"></i>
                                     </button>
                                 </div>
                             </>
@@ -374,36 +374,30 @@ export default function NodeSettingsPanel({
                                 output sink of the model. Its shape must match the target task.
                             </div>
                         )}
-                    </div>
-
-                    <div className="mt-auto pt-3 border-t border-[var(--border-color)]/30 flex flex-wrap gap-2 justify-between">
+                    <div className="mt-auto pt-3 border-t border-[var(--light-highlight)]/30 flex flex-wrap gap-2 justify-between">
                         <button
-                            className="rounded-full border border-[var(--border-color)] px-3 py-1 text-[11px] transition hover:bg-[var(--card-background)] disabled:opacity-40"
+                            className="rounded-full border border-[var(--light-highlight)] px-3 py-1 text-[11px] transition hover:bg-[var(--background)] disabled:opacity-40"
                             disabled={busy || !client || selectedNodeId === "input" || selectedNodeId === "output"}
                             onClick={onExpandNode}
                         >
                             Expand Node
                         </button>
                         <button
-                            className="rounded-full border border-[var(--border-color)] px-3 py-1 text-[11px] transition hover:bg-[var(--card-background)] disabled:opacity-40"
+                            className="rounded-full border border-[var(--light-highlight)] px-3 py-1 text-[11px] transition hover:bg-[var(--background)] disabled:opacity-40"
                             disabled={busy || !client || selectedNodeId === "input" || selectedNodeId === "output"}
                             onClick={onCollapseNode}
                         >
                             Collapse Node
                         </button>
                     </div>
+                    </div>
+
                 </>
             ) : (
                 <>
                     <h1>Blueprint Editor</h1>
                     <div>
                         <div className="flex flex-col gap-4 text-xs text-white/70">
-                            <div className="flex gap-2.5 bg-[var(--accent-color)]/10 text-white">
-                                <div>
-                                    <span className="font-semibold block text-[11px]">Free-Form Editor</span>
-                                    Make changes freely. Errors are tolerated until validation or training.
-                                </div>
-                            </div>
 
                             <div>
                                 <span className="font-semibold block text-white/95 mb-1">Canvas Controls</span>

@@ -12,8 +12,10 @@
     display: flex;
     align-items: flex-start;
     justify-content: space-between;
+    align-items: center;
     gap: 1rem;
-    padding: 0.85rem 1rem 0.65rem;
+    padding: 0.58rem 1.5rem;
+    height: 4.5rem;
     border-bottom: 1px solid var(--light-highlight);
 }
 
@@ -35,9 +37,10 @@
     background: transparent;
     border: 1px solid var(--light-highlight);
     color: var(--light-highlight);
-    border-radius: 999px;
-    padding: 0.35rem 0.85rem;
-    font-size: 0.75rem;
+    border-radius: 0.5rem;
+    padding: 0.85rem 1.1rem;
+    font-size: 1rem;
+    font-weight: 900;
     cursor: pointer;
     transition: border-color 0.15s ease, color 0.15s ease;
 }
@@ -133,8 +136,6 @@
     display: flex;
     gap: 0.6rem;
     padding: 0.75rem 1rem 1rem;
-    border-top: 1px solid rgba(117, 117, 117, 0.35);
-    background: rgba(0, 0, 0, 0.2);
 }
 
 .input {

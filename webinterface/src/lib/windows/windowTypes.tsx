@@ -1,4 +1,4 @@
-import Visualiser from "@/components/windows/visualiser";
+import Visualiser from "@/components/functional/Visualiser/visualiser";
 import FileExplorer from "@/components/windows/FileExplorer/FileExplorer";
 import Settings from "@/components/windows/Other/Settings";
 import Chat from "@/components/windows/Other/Chat";
@@ -8,6 +8,7 @@ import DataViewer from "@/components/windows/DataWindows/DataViewer";
 import Optimization from "@/components/windows/Optimization/Optimization";
 import Diagnostics from "@/components/windows/Diagnostics/Diagnostics";
 import ModelEditor from "@/components/windows/ModelEditor/ModelEditor";
+
 
 export const enum Windows  {
     "Visualiser" = "Visualiser",

@@ -1,18 +1,25 @@
 .controlsContainer{
     display: flex;
     justify-content: space-between;
-    width: 100%;
+    width: 50%;
     max-width: 90vw;
     border-top-left-radius: 0.5rem;
     border-top-right-radius: 0.5rem;
     background-color: var(--card-background);
     padding: 0.5rem;
+
+}
+
+.tableWrapper {
+    background-color: var(--card-background);
+    border-radius: 0.5rem;
+    overflow: hidden;
 }
 
 .controls{
     display: flex;
     align-items: center;
-    gap: 0.2rem;
+    gap: 0.5rem;
 }
 
 .controls input{
@@ -21,15 +28,27 @@
     border: 1px solid var(--light-highlight);
     padding: 0.2rem;
     outline: none;
+    color: var(--light-highlight)
+}
+
+.controls input:focus{
+    border: 1px solid var(--primary);
+    color: var(--text);
 }
 
 .controls button{
-    padding: 0.2rem;
+    padding: 0.25rem 0.5rem;
+    border-radius: 0.5rem;
+    background-color: var(--primary);
+    color: var(--card-background);
     transition: 0.2s ease-in-out;
+    border: 2px solid var(--primary);
 }
 
 .controls button:hover{
     color: var(--primary);
+    background-color: var(--card-background);
+    cursor: pointer;
 }
 
 .controls button:active{
@@ -44,13 +63,29 @@
 }
 
 .headerRow{
-    background-color: var(--card-background);
+    background-color: var(--background);
     position: sticky;
     top: 0;
     z-index: 2;
+    border-bottom: 2px solid var(--background);
 }
 
-.table th, .table tr, .table td {
-    border: 1px solid var(--light-highlight);
-    padding: 0.2rem;
+.headerRow th{
+    padding: 1rem;
+    border: 3px solid var(--card-background);
+    border-bottom: var(--primary) 2px solid;
+}
+
+.table tr, .table td {
+    border: 1px solid var(--background);
+    border-right: 2px solid var(--background);
+    border-left: 2px solid var(--background);
+    padding: 0.4rem;
+    background-color: var(--card-background);
+}
+
+.numeric {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+    padding-right: 1.25rem;
 }

@@ -40,10 +40,19 @@ export type PersistedClientState = {
     config: ClientConfig | null;
 };
 
+/** Keys for per-model-slot visualisation cache in the project store. */
+export type VisualisationSlotKey =
+    | "uploadedPt2"
+    | "uploadedOnnx"
+    | "optimizedPt2"
+    | "optimizedOnnx";
+
+export type ProjectVisualisations = Record<VisualisationSlotKey, unknown | null>;
+
 export type PersistedProjectState = {
     project: unknown | null;
     csv: unknown | null;
-    visualisation: unknown | null;
+    visualisations: ProjectVisualisations;
     optimizationRun: OptimizationRunState | null;
     diagnosticsRun: DiagnosticsRunState | null;
 };
