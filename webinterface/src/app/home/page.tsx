@@ -133,7 +133,7 @@ export default function Home() {
     return (
         <main>
                 <div className={"hero"}>
-                    <img src={"/Wordmark.svg"}/>
+                    <img src={"/wordmark.svg"}/>
                 </div>
             <nav className={"navBar"}>
                 <div className={"navBarItems"}>
