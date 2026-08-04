@@ -93,7 +93,7 @@ export default function MenuBar({cloudEnabled = true}:{cloudEnabled?: boolean}){
     return (
         <nav className={Style.container}>
             <div className={Style.homeButton} >
-                <img src={"/logo.svg"} onClick={()=>{router.push("/")}}/>
+                <img src={"/logo.svg"} onClick={()=>{router.push("/home")}}/>
             </div>
                 <motion.div className={Style.menuHolder} initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}} transition={{duration:0.2}} onMouseEnter={()=>{setHoveredIndex(null)}}>
                 {

@@ -132,9 +132,9 @@ export default function Home() {
 
     return (
         <main>
-                <div className={"hero"}>
+                <a className={"hero"} href={"/"}>
                     <img src={"/wordmark.svg"}/>
-                </div>
+                </a>
             <nav className={"navBar"}>
                 <div className={"navBarItems"}>
                     <button onClick={()=>{setOpenPage(0)}}>
