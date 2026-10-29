@@ -36,6 +36,9 @@ export default function SlotCard({
 }: SlotCardProps) {
     const hasContent = slot.exists;
     const hasPreview = Boolean(visualisation?.nodes);
+    // Agent returns accept as a multi-extension picker string (e.g. ".pt2,.pt,.pth"),
+    // so never gate PT2 actions on accept === ".pt2".
+    const isEditableUploadedPt2 = slot.key === "uploaded_pt2";
 
     function handlePreviewClick() {
         if (hasPreview && openCachedVisualiser) {
@@ -65,7 +68,7 @@ export default function SlotCard({
                     aria-label={hasPreview ? `Open ${slot.label} visualisation` : `Visualise ${slot.label}`}
                     onClick={
                         ()=>{
-                            if(hasContent && slot.accept === ".pt2" && !slot.label.toLowerCase().startsWith("optimized"))
+                            if(hasContent && isEditableUploadedPt2)
                                 editPt2(slot)
                             else
                                 handlePreviewClick()
@@ -86,7 +89,7 @@ export default function SlotCard({
                         </div>
                     )}
                     <div>
-                        {(hasContent && slot.accept === ".pt2" && !slot.label.toLowerCase().startsWith("optimized")) ? (
+                        {(hasContent && isEditableUploadedPt2) ? (
                             <div
                                 className={Style.previewActionButton}
                             >
@@ -100,7 +103,7 @@ export default function SlotCard({
                 </div>
 
             )}
-            {hasContent && slot.accept === ".pt2" && !slot.label.toLowerCase().startsWith("optimized") && (
+            {hasContent && isEditableUploadedPt2 && (
                 <div className={Style.slotMainActions}>
                     <button
                         onClick={() => openOptimization(slot)}
@@ -136,7 +139,7 @@ export default function SlotCard({
                         {hasContent ? "Replace" : "Upload"} <i className="fa-solid fa-upload" />
                     </button>
                 )}
-                {slot.canUpload && slot.accept === ".pt2" && (
+                {slot.canUpload && isEditableUploadedPt2 && (
                     <button
                         className={Style.menuButton}
                         onClick={() => createNewPt2(slot)}

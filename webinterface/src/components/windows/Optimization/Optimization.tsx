@@ -424,20 +424,20 @@ export default function Optimization(props: IDockviewPanelProps) {
     }, [hasSavedResults]);
 
     if(!project){
-        return <div>No project loaded</div>
+        return <div className={Styles.errorBanner}>No project loaded</div>
     }
 
-    if(!csv){
-        return <div>No data loaded</div>
+    if(!csv || Object.keys(csv).length === 0){
+        return <div className={Styles.errorBanner}>No data loaded</div>
     }
 
     const model = panelParams.modelFilepath || project.projectData.uploadedPt2File || project.projectData.modelFile;
     if(model === null || model === "null" || model === "undefined" || model === ""){
-        return <div>No model loaded</div>
+        return <div className={Styles.errorBanner}>No model loaded</div>
     }
 
     if(model.split(".")[1] !== "pt2")
-        return <div>Only PT2 models are supported</div>
+        return <div className={Styles.errorBanner}>Only PT2 models are supported</div>
 
     const data: Map<string, Array<any>> = new Map();
 
