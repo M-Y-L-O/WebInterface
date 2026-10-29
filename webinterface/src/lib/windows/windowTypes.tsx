@@ -1,6 +1,5 @@
 import Visualiser from "@/components/functional/Visualiser/visualiser";
 import FileExplorer from "@/components/windows/FileExplorer/FileExplorer";
-import Settings from "@/components/windows/Other/Settings";
 import Chat from "@/components/windows/Other/Chat";
 import Properties from "@/components/windows/Other/Properties";
 import DataInfo from "@/components/windows/DataWindows/DataInfo";
@@ -14,7 +13,6 @@ export const enum Windows  {
     "Visualiser" = "Visualiser",
     "FileExplorer" = "FileExplorer",
     "ModelEditor" = "ModelEditor",
-    "Settings" = "Settings",
     "Chat" = "Chat",
     "Properties" = "Properties",
     "DataInfo" = "DataInfo",
@@ -29,7 +27,6 @@ export const components = {
     Visualiser: Visualiser,
     FileExplorer: FileExplorer,
     ModelEditor: ModelEditor,
-    Settings: Settings,
     Chat:Chat,
     Properties:Properties,
     DataInfo:DataInfo,

@@ -1,15 +1,15 @@
 "use client";
 
-import {FormEvent, KeyboardEvent, useEffect, useRef, useState} from "react";
+import {FormEvent, useEffect, useRef, useState} from "react";
+import { useRouter } from "next/navigation";
 import { buildProjectContextSnapshot } from "@/lib/ai/projectContext";
 import { executeAiTool } from "@/lib/ai/executeTool";
 import type { AiChatResponse, AiContent, ChatMessage } from "@/lib/ai/types";
 import Style from "./Chat.module.css";
-import {addWindow} from "@/lib/windows/windowActions";
 
 import MarkDownPreview from "@uiw/react-markdown-preview"
 import Dropdown from "@/components/structural/Dropdown";
-import {useDockviewStore} from "@/lib/store";
+import { usePrefsStore } from "@/lib/settings/prefsStore";
 
 const MAX_TOOL_ROUNDS = 12;
 
@@ -47,15 +47,14 @@ export default function Chat() {
     const [input, setInput] = useState("");
     const [busy, setBusy] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const defaultModel = usePrefsStore((s) => s.defaultModel);
     const [models, setModels] = useState<string[] | null>(null);
-    const [internalNames, setInternalNames] = useState<string[]>([]);
-    const [model, setModel] = useState<string | null>(null);
-    const [activeInternal, setActiveInternal] = useState<string | null>(null);
+    const [model, setModel] = useState<string | null>(defaultModel);
     const scrollerRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLTextAreaElement>(null);
     const historyRef = useRef<AiContent[]>([]);
 
-    const api = useDockviewStore(state => state.api);
+    const router = useRouter();
 
     useEffect(() => {
         const el = scrollerRef.current;
@@ -64,31 +63,38 @@ export default function Chat() {
     }, [messages, busy]);
 
     useEffect(() => {
-        fetchModels();
-    }, []);
+        void fetchModels();
+    }, [defaultModel]);
 
     async function fetchModels(){
-        const res = await fetch("/api/ai/chat", {
-            method: "GET",
-            headers: { "Content-Type": "application/json" },
-        });
-        const data = await res.json().catch(() => ({}));
-        if (!res.ok) {
-            throw new Error(data?.error || `Model request failed (${res.status})`);
+        try {
+            const res = await fetch("/api/ai/chat", {
+                method: "GET",
+                headers: { "Content-Type": "application/json" },
+            });
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok) {
+                throw new Error(data?.error || `Model request failed (${res.status})`);
+            }
+            const ids: string[] = Array.isArray(data.models)
+                ? data.models
+                      .map((m: { id?: string } | string) =>
+                          typeof m === "string" ? m : m.id,
+                      )
+                      .filter(Boolean)
+                : [];
+            const preferred =
+                (defaultModel && ids.includes(defaultModel) && defaultModel) ||
+                (typeof data.default === "string" && ids.includes(data.default) && data.default) ||
+                ids[0] ||
+                defaultModel ||
+                null;
+            setModels(ids.length ? ids : null);
+            setModel(preferred);
+        } catch (e) {
+            setError(e instanceof Error ? e.message : "Failed to load models");
+            setModel(defaultModel || null);
         }
-        let _models:string[] = [], _internal:string[] = [];
-        if(data.models && data.models.pageInternal){
-            data.models.pageInternal.forEach((m:any)=>{
-                console.log(m);
-                if(m.supportedActions.some((r:string) => r==="generateContent"))
-                _models.push(m.displayName);
-                _internal.push(m.name.split("/")[1])
-            })
-        }
-
-        setModels(_models);
-        setInternalNames(_internal);
-        setModel(_models[0]);
     }
 
     async function runAgent(userText: string) {
@@ -105,7 +111,7 @@ export default function Chat() {
 
         try {
             for (let round = 0; round < MAX_TOOL_ROUNDS; round++) {
-                const reply = await callGemini(contents);
+                const reply = await callGemini(contents, model || undefined);
 
                 if (reply.modelContent) {
                     contents.push(reply.modelContent);
@@ -220,16 +226,12 @@ export default function Chat() {
     return (
         <div className={Style.container}>
             <header className={Style.header}>
-                <div className={"flex flex-col items-center justify-center"}>
-                    <h1>MYLO Assistant</h1>
+                    <h1 className={"text-nowrap"}>MYLO Assistant</h1>
                     { models && model &&
                     <Dropdown options={models} defaultValue={model} onChange={(e)=>{
                         setModel(e);
-                        setActiveInternal(internalNames[models?.indexOf(e)!]);
-
                     }} small={true}/>
                     }
-                </div>
                 <div className={"flex flex-row items-center justify-center gap-5"}>
                     <button
                         type="button"
@@ -250,9 +252,6 @@ export default function Chat() {
                         }}
                     >
                         <i className={"fa-solid fa-plus"}/>
-                    </button>
-                    <button className={Style.clearBtn} onClick={()=>{addWindow(api, "Settings")}} title={"Api Key Settings"}>
-                        <i className={"fa-solid fa-key"} />
                     </button>
                 </div>
             </header>

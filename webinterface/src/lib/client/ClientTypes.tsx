@@ -261,6 +261,7 @@ export interface ModelDiagnosticsReport {
 export enum EndPoints{
     health = "/",
     initialize = "/initialize",
+    disconnect = "/disconnect",
     optimize = "/optimizeModel",
     optimizeStatus = "/optimizationStatus",
     optimizationReport = "/optimizationReport",

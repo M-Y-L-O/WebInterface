@@ -140,7 +140,6 @@ export default function SlotCard({
                     <button
                         className={Style.menuButton}
                         onClick={() => createNewPt2(slot)}
-                        disabled={hasContent}
                     >
                         New <i className="fa-solid fa-file" />
                     </button>

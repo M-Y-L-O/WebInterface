@@ -7,7 +7,7 @@ export default function DataTable(results:any){
     results = results.results;
     console.log(results);
 
-    if(results === null || results === undefined)
+    if(results === null || Object.keys(results).length === 0)
         return <div>
             <h1>No results</h1>
         </div>
@@ -72,8 +72,9 @@ export default function DataTable(results:any){
             <thead className={Style.headerRow}>
             <tr>
                 {[...data.keys()].map((key, index) => (
-                    <th key={index} className={isNumeric(key) ? Style.numeric : "flex flex-col"}>
-                        {key} <br/> <span className={"text-[var(--light-highlight)] text-xs"}>({results.summary.dtypes[key]})</span>
+                    <th key={index} className={isNumeric(key) ? Style.numeric : undefined}>
+                        <span className={Style.headerLabel}>{key}</span>
+                        <span className={"text-[var(--light-highlight)] text-xs"}>({results.summary.dtypes[key]})</span>
                     </th>
                 ))}
             </tr>

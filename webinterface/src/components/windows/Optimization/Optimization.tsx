@@ -6,6 +6,7 @@ import Styles from "./Optimization.module.css"
 import {useClientStore, useProjectStore} from "@/lib/store";
 import Dropdown from "@/components/structural/Dropdown";
 import {motion} from "framer-motion";
+import { usePrefsStore } from "@/lib/settings/prefsStore";
 import type {
     ArchitectureDiff,
     ChampionLineageEntry,
@@ -48,6 +49,45 @@ function deltaTone(changePct: unknown): "good" | "bad" | "neutral" {
         return "neutral";
     // Loss/params/latency use reduction %; accuracy uses increase pp — positive is improvement either way.
     return n > 0 ? "good" : "bad";
+}
+
+function formatOptimizationError(payload: unknown): string {
+    if (payload instanceof Error) {
+        const cause = (payload as Error & { cause?: unknown }).cause;
+        const causeMsg = cause instanceof Error ? cause.message : typeof cause === "string" ? cause : "";
+        const base = payload.message?.replace(/:\s*$/, "") || "Optimization request failed";
+        return causeMsg ? `${base}: ${causeMsg}` : (payload.message || base);
+    }
+
+    if (!payload || typeof payload !== "object")
+        return "Optimization failed";
+
+    const body = payload as {
+        error?: unknown;
+        details?: unknown;
+        message?: unknown;
+    };
+
+    const nested =
+        body.details
+        && typeof body.details === "object"
+        && body.details !== null
+        && "error" in (body.details as object)
+            ? String((body.details as { error?: unknown }).error)
+            : typeof body.details === "string"
+                ? body.details
+                : "";
+
+    if (nested)
+        return nested;
+
+    if (body.error != null && body.error !== "")
+        return String(body.error);
+
+    if (body.message != null && body.message !== "")
+        return String(body.message);
+
+    return "Optimization failed";
 }
 
 function sparkPath(values: Array<number | string | null | undefined>, width: number, height: number): string {
@@ -341,8 +381,15 @@ export default function Optimization(props: IDockviewPanelProps) {
     const [problemType, setProblemType] = useState<string>("regression");
     const [strategy, setStrategy] = useState<string>("neuroevolution");
     const [encoding, setEncoding] = useState<string>("none");
-    const [trainingEpochs, setTrainingEpochs] = useState<number>(10);
-    const [generations, setGenerations] = useState<number>(5);
+    const optEpochsDefault = usePrefsStore((s) => s.optEpochs);
+    const optGenerationsDefault = usePrefsStore((s) => s.optGenerations);
+    const [trainingEpochs, setTrainingEpochs] = useState<number>(optEpochsDefault);
+    const [generations, setGenerations] = useState<number>(optGenerationsDefault);
+
+    useEffect(() => {
+        setTrainingEpochs(optEpochsDefault);
+        setGenerations(optGenerationsDefault);
+    }, [optEpochsDefault, optGenerationsDefault]);
 
     const hasSavedResults = !!(
         optimizationRun?.result
@@ -458,15 +505,30 @@ export default function Optimization(props: IDockviewPanelProps) {
                 problemType: problemType,
             }, model);
 
+            // HTTP response also carries leftover status_updates — merge any the SSE stream missed.
+            if (!(response instanceof Error) && Array.isArray(response?.status_updates)) {
+                const existing = useProjectStore.getState().optimizationRun?.updates ?? [];
+                const seen = new Set(existing.map(u => `${u.type ?? ""}|${u.status ?? ""}`));
+                for (const update of response.status_updates as ProgressUpdate[]) {
+                    if (!update || typeof update !== "object")
+                        continue;
+                    const key = `${update.type ?? ""}|${update.status ?? ""}`;
+                    if (seen.has(key))
+                        continue;
+                    seen.add(key);
+                    appendOptimizationUpdate(update);
+                }
+            }
+
             if(response instanceof Error){
                 setOptimizationResult({
-                    runError: response.message || "Optimization request failed",
+                    runError: formatOptimizationError(response),
                 });
             } else {
                 const payload = response?.result ?? response;
-                if(payload?.error){
+                if(payload?.error || response?.error){
                     setOptimizationResult({
-                        runError: String(payload.error),
+                        runError: formatOptimizationError(payload?.error ? payload : response),
                     });
                 } else {
                     setOptimizationResult({
@@ -480,8 +542,9 @@ export default function Optimization(props: IDockviewPanelProps) {
                 }
             }
         } catch (e) {
+            console.error(e);
             setOptimizationResult({
-                runError: e instanceof Error ? e.message : "Optimization failed",
+                runError: formatOptimizationError(e),
             });
         } finally {
             endCon();
@@ -591,7 +654,8 @@ export default function Optimization(props: IDockviewPanelProps) {
                    View Results
                 </button>
             </div>
-            <div className={Styles.container}>
+            <div className={Styles.settings}>
+
                 <div className={Styles.section}>
                     <h2>Feature select</h2>
                     <ul>
@@ -667,7 +731,7 @@ export default function Optimization(props: IDockviewPanelProps) {
                 </div>
                 <div className={Styles.section}>
                     <h2>Optimization Strategy:</h2>
-                    <Dropdown onChange={(e)=>{setStrategy(e)}} options={["neuroevolution", "genetic"]} defaultValue={"neuroevolution"}>
+                    <Dropdown onChange={(e)=>{setStrategy(e)}} options={["neuroevolution", "optuna"]} defaultValue={"neuroevolution"}>
 
                     </Dropdown>
                 </div>

@@ -10,11 +10,10 @@
 
 .header {
     display: flex;
-    align-items: flex-start;
     justify-content: space-between;
     align-items: center;
     gap: 1rem;
-    padding: 0.58rem 1.5rem;
+    padding: 0.5rem 0.8rem;
     height: 4.5rem;
     border-bottom: 1px solid var(--light-highlight);
 }
@@ -143,7 +142,7 @@
     resize: none;
     border-radius: 0.65rem;
     border: 1px solid var(--light-highlight);
-    background: #171717;
+    background: var(--card-background);
     color: var(--text);
     padding: 0.65rem 0.8rem;
     font-size: 0.9rem;

@@ -1,7 +1,19 @@
 .pageCont {
-    width: 100vw;
+    /* Always use dark theme tokens on the landing page, regardless of html[data-theme]. */
+    --primary: #FD851D;
+    --primary-hover: #c36619;
+    --background: #2B2B2B;
+    --text: #f1f1f1;
+    --text-light: #6b7280;
+    --card-background: #171717;
+    --light-highlight: #757575;
+    color-scheme: dark;
+
+    max-width: 100vw;
     min-height: 100vh;
-    background: #050505;
+    background: #000000;
+    color: var(--text);
+    overflow-x: hidden;
 }
 
 
@@ -220,9 +232,251 @@
     }
 }
 
+.CentralFeature{
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 1rem 1.5rem;
+    margin-bottom: 5rem;
+    box-sizing: border-box;
+    width: 100%;
+}
+
+.CentralFeature h1{
+    font-size: clamp(1.6rem, 4vw, 2.5rem);
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    color: var(--text);
+    margin: 0;
+    text-align: center;
+    max-width: 20ch;
+}
+
+.CentralFeature .videoContainer{
+    width: 100%;
+    height: auto;
+    padding-inline: clamp(0rem, 5vw, 5rem);
+    overflow: hidden;
+    margin-top: 1.5rem;
+}
+
+.CentralFeature .videoContainer video{
+    width: 100%;
+    height: auto;
+    display: block;
+}
+
+.CentralFeature p{
+    margin-top: clamp(1.5rem, 6vw, 6rem);
+    font-size: clamp(1.05rem, 2.2vw, 1.5rem);
+    text-align: center;
+    max-width: 36rem;
+    padding-inline: 0.5rem;
+}
+
+.highlight{
+    color: var(--primary);
+}
+
+.Feature{
+    display: flex;
+    align-items: center;
+    padding-inline: clamp(1.25rem, 5vw, 5rem);
+    gap: 1.5rem;
+    min-height: 80vh;
+    height: auto;
+    box-sizing: border-box;
+    width: 100%;
+}
+
+.inverse{
+    flex-direction: row-reverse;
+}
+
+.Feature video{
+    width: 50%;
+    height: auto;
+    max-width: 100%;
+}
+
+.Feature .textContainer{
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 1rem;
+    width: 50%;
+    box-sizing: border-box;
+}
+
+.textContainer h1{
+    font-size: clamp(1.35rem, 2.5vw, 2rem);
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    color: var(--text);
+    margin: 0;
+    margin-bottom: 1rem;
+    max-width: 18ch;
+}
+
+.textContainer p{
+    max-width: 28rem;
+}
+
+.smallFeaturesList{
+    display: flex;
+    gap: 2.5rem;
+    padding-inline: clamp(1.25rem, 5vw, 5rem);
+    width: 100%;
+    justify-content: center;
+    box-sizing: border-box;
+}
+
+.smallFeature{
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 1rem;
+    text-align: center;
+    flex: 1 1 0;
+    min-width: 0;
+}
+
+.smallFeature img{
+    width: 100%;
+    height: auto;
+}
+
+.smallFeature h1{
+    font-size: 1.5rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    color: var(--text);
+    margin: 0;
+}
+
+.lastCta{
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    padding: clamp(2.5rem, 6vw, 5rem) 1.5rem;
+    margin-top: 3rem;
+    margin-bottom: 3rem;
+    gap: 1.5rem;
+    text-align: center;
+    box-sizing: border-box;
+}
+
+.lastCta h2{
+    font-size: clamp(1.1rem, 2.4vw, 1.4rem);
+    font-weight: 400;
+    letter-spacing: 0.02em;
+    margin: 0;
+    max-width: 28rem;
+}
+
+.lastCta .cta{
+    padding: 0.75rem 1.5rem;
+    font-size: clamp(1.15rem, 2.5vw, 1.75rem);
+    font-weight: 800;
+    background: var(--primary);
+    color: #111;
+    border: 1px solid var(--primary);
+    border-radius: 0.5rem;
+    cursor: pointer;
+    text-decoration: none;
+    transition:
+        background 0.2s ease,
+        border-color 0.2s ease,
+        color 0.2s ease;
+}
+
+.footer{
+    background-color: var(--background);
+    padding: 1rem;
+    display: flex;
+    align-items: flex-end;
+    text-wrap: nowrap;
+    gap: 0.75rem;
+    width: 100%;
+}
+
+.footer .logo{
+    width: min(11rem, 45vw);
+    height: auto;
+    flex-shrink: 0;
+}
+
+.footer h1{
+    font-size: clamp(1rem, 2.2vw, 1.7rem);
+    font-weight: 400;
+    letter-spacing: 0.02em;
+    color: var(--text);
+    margin: 0;
+    position: relative;
+    text-wrap: nowrap;
+    top: 0.4rem;
+}
+
+.footer h2{
+    color: var(--text-light);
+    font-size: clamp(0.85rem, 1.8vw, 1rem);
+    margin: 0;
+    text-wrap: nowrap;
+    top: 0.2rem;
+    position: relative;
+}
+
+
+/* Tablet: stack feature rows */
+@media (max-width: 900px) {
+    .Feature,
+    .Feature.inverse {
+        flex-direction: column;
+        justify-content: center;
+        min-height: auto;
+        padding-block: 3.5rem;
+        gap: 1.75rem;
+    }
+
+    .Feature video,
+    .Feature .textContainer {
+        width: 100%;
+    }
+
+    .Feature video {
+        max-width: 40rem;
+    }
+
+    .smallFeaturesList {
+        flex-direction: column;
+        align-items: center;
+        gap: 2rem;
+    }
+
+    .smallFeature {
+        width: min(100%, 24rem);
+        flex: none;
+    }
+}
+
 @media (max-width: 640px) {
     .hero-graph-frame {
         transform: scale(1.35) rotate(-2deg);
+    }
+
+    .hero-wordmark {
+        width: min(14rem, 72vw);
+        height: auto;
+    }
+
+    .hero-headline {
+        font-size: 0.95rem;
+        padding-inline: 1rem;
     }
 
     .hero-ctas {
@@ -232,5 +486,64 @@
 
     .hero-cta {
         width: 100%;
+    }
+
+    .CentralFeature {
+        padding: 1.25rem 1rem;
+        margin-bottom: 2.5rem;
+    }
+
+    .CentralFeature .videoContainer {
+        padding-inline: 0;
+        margin-top: 1.25rem;
+    }
+
+    .CentralFeature p {
+        margin-top: 1.25rem;
+    }
+
+    .Feature {
+        padding-inline: 1rem;
+        padding-block: 2.5rem;
+        gap: 1.25rem;
+    }
+
+    .Feature .textContainer {
+        padding: 0;
+    }
+
+    .textContainer h1 {
+        max-width: none;
+    }
+
+    .smallFeaturesList {
+        padding-inline: 1rem;
+    }
+
+    .lastCta {
+        margin-top: 1.5rem;
+        margin-bottom: 1.5rem;
+        padding: 2rem 1rem;
+    }
+
+    .lastCta .cta {
+        width: min(100%, 16rem);
+        text-align: center;
+        box-sizing: border-box;
+    }
+
+    .footer {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.5rem;
+        padding: 1.25rem 1rem 1.5rem;
+    }
+
+    .footer h1 {
+        top: 0;
+    }
+
+    .footer .w-full {
+        display: none;
     }
 }

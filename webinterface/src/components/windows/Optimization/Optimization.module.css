@@ -1,8 +1,7 @@
 .container{
-    padding: 1rem 0.2rem;
+    padding: 0 0.2rem 1rem 0.2rem;
     display: flex;
     flex-direction: column;
-    gap: 1rem;
     height: 100%;
     width: 100%;
     overflow-y: auto;
@@ -31,8 +30,9 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 1rem;
     padding: 0 0.6rem;
+    min-height: 5rem;
+    background-color: var(--card-background);
 }
 
 .headerRow h1{
@@ -103,7 +103,7 @@
     background-color: var(--primary);
     color: var(--card-background);
     padding: 0.8rem 2rem;
-    border-radius: 5rem;
+    border-radius: 0.5rem;
     transition: 0.2s ease-in-out;
     cursor: pointer;
     margin: 0rem 4rem;
@@ -128,13 +128,28 @@
     transform: none;
 }
 
+.settings{
+    padding: 0.2rem 0.2rem 1rem 0.2rem;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    width: 100%;
+    gap:1rem;
+    overflow-y: auto;
+    overflow-x: hidden;
+}
+
 /* ---- Results ---- */
 
 .results{
+    padding: 0.2rem 0.2rem 1rem 0.2rem;
     display: flex;
     flex-direction: column;
-    gap: 1rem;
-    padding: 0 0.4rem 1rem;
+    height: 100%;
+    width: 100%;
+    gap:1rem;
+    overflow-y: auto;
+    overflow-x: hidden;
 }
 
 .progressTrack{

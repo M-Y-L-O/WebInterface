@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { Bakbak_One, Josefin_Sans } from "next/font/google";
 import '@/lib/fontawesome/css/fa.css';
 import "./globals.css";
-import {Toaster} from 'sonner';
+import PrefsProvider from "@/lib/settings/PrefsProvider";
 
 const joseSans = Josefin_Sans({
   variable: "--font-josefin-sans",
@@ -31,12 +31,11 @@ export default function RootLayout({
   return (
     <html
       lang="en"
+      data-theme="dark"
       className={`${joseSans.variable} ${bakbakOne.variable} h-full antialiased`}
     >
-
       <body className="min-h-full flex flex-col">
-      <Toaster theme={"dark"}/>
-          {children}
+        <PrefsProvider>{children}</PrefsProvider>
       </body>
     </html>
   );

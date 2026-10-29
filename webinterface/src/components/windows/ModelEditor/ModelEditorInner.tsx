@@ -36,10 +36,12 @@ import {
     paramsToFields,
     templateFieldsForType,
 } from "./helpers";
+import { blockAction, disabledReason, noteAction, whyBlocked } from "./actionBlock";
 import ModelContextMenu from "./ModelContextMenu";
 import NodeSettingsPanel from "./NodeSettingsPanel";
 import PortedNode from "./PortedNode";
 import Style from "./ModelEditor.module.css";
+import {usePrefsStore} from "@/lib/settings/prefsStore";
 
 // Register custom node types once outside the component (stable reference)
 const NODE_TYPES = { portedNode: PortedNode };
@@ -88,6 +90,8 @@ export default function ModelEditorInner(props: IDockviewPanelProps) {
     const [viewMode, setViewMode] = useState<ViewMode>("summary");
     const [expandedNodes, setExpandedNodes] = useState<string[]>([]);
     const [shapes, setShapes] = useState<Record<string, any>>({});
+    /** Soft shape / contract warnings from the agent (descriptor can still be structurally valid). */
+    const [descriptorWarnings, setDescriptorWarnings] = useState<string[]>([]);
 
     // ReactFlow state
     const [nodes, setNodes, onNodesChange] = useNodesState([]);
@@ -108,9 +112,9 @@ export default function ModelEditorInner(props: IDockviewPanelProps) {
     const [nodeParamFields, setNodeParamFields] = useState<ParamField[]>([]);
     const [quickAddType, setQuickAddType] = useState<string>("Linear");
 
-    // Undo/redo availability
-    const [canUndo, setCanUndo] = useState(true);
-    const [canRedo, setCanRedo] = useState(true);
+    // Undo/redo availability — driven by agent history flags, not optimistic defaults
+    const [canUndo, setCanUndo] = useState(false);
+    const [canRedo, setCanRedo] = useState(false);
 
     const [busy, setBusy] = useState(false);
     const lastGraphRef = useRef<any>(null);
@@ -133,19 +137,32 @@ export default function ModelEditorInner(props: IDockviewPanelProps) {
 
     // When the panel is reopened with updated params, reload from the agent.
     useEffect(() => {
-        if (!client) return;
+        if (!client) {
+            noteAction("syncPanelDescriptor", "Skipped — no MYLO agent connected");
+            return;
+        }
         const panelDescriptor = (props as any).params?.descriptor;
-        if (!panelDescriptor) return;
+        if (!panelDescriptor) {
+            noteAction("syncPanelDescriptor", "Skipped — panel has no descriptor param");
+            return;
+        }
 
         if (!panelDescriptorSyncedRef.current) {
             panelDescriptorSyncedRef.current = true;
+            noteAction("syncPanelDescriptor", "Skipped first sync (initial mount gate)");
             return;
         }
 
         void (async () => {
             try {
                 const descRes = await client.getModelDescriptor();
-                if (!descRes || descRes instanceof Error || !(descRes as any)?.descriptor) return;
+                if (!descRes || descRes instanceof Error || !(descRes as any)?.descriptor) {
+                    blockAction("syncPanelDescriptor", "getModelDescriptor returned no usable descriptor", {
+                        isError: descRes instanceof Error,
+                        response: descRes instanceof Error ? descRes.message : descRes,
+                    });
+                    return;
+                }
                 const nextDescriptor = (descRes as any).descriptor;
                 setDescriptorState(nextDescriptor);
                 const graphRes = await client.visualizeModel({
@@ -154,11 +171,18 @@ export default function ModelEditorInner(props: IDockviewPanelProps) {
                     expandedNodes,
                 });
                 if (!(graphRes instanceof Error) && !(graphRes as any)?.error) {
-                    if ((graphRes as any)?.shapes) setShapes((graphRes as any).shapes);
+                    syncDescriptorWarnings(graphRes);
                     await renderGraph(graphRes, { relayout: true });
+                } else {
+                    blockAction("syncPanelDescriptor", "visualizeModel failed during panel sync", {
+                        error: (graphRes as any)?.error ?? (graphRes instanceof Error ? graphRes.message : graphRes),
+                    });
                 }
-            } catch {
-                // Ignore reload errors on param refresh
+            } catch (e: any) {
+                // Reload errors on param refresh stay non-fatal for the UI
+                blockAction("syncPanelDescriptor", "Reload threw — ignored so panel stays usable", {
+                    error: e?.message || String(e),
+                });
             }
         })();
         // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -287,6 +311,7 @@ export default function ModelEditorInner(props: IDockviewPanelProps) {
     // ---------------------------------------------------------------------------
     async function loadInitial() {
         if (!client) {
+            noteAction("loadInitial", "No agent connected — showing empty local descriptor");
             setDescriptorState(defaultEmptyDescriptor());
             await renderGraph({ nodes: [], edges: [], summary: {} }, { relayout: true });
             return;
@@ -327,14 +352,20 @@ export default function ModelEditorInner(props: IDockviewPanelProps) {
                     (graphRes as any)?.error || "Failed to visualize descriptor"
                 );
             }
-            if ((graphRes as any)?.shapes) setShapes((graphRes as any).shapes);
+            syncDescriptorWarnings(graphRes);
             await renderGraph(graphRes, { relayout: true });
+            // Fresh open — don't inherit optimistic undo affordances from a prior session
+            setCanUndo(Boolean((descRes as any)?.canUndo));
+            setCanRedo(Boolean((descRes as any)?.canRedo));
         } catch (e: any) {
             toast.error("Failed to load model editor", {
                 description: e?.message || "Unknown error",
             });
             const fallback = defaultEmptyDescriptor();
             setDescriptorState(fallback);
+            setCanUndo(false);
+            setCanRedo(false);
+            setDescriptorWarnings([]);
             if (client) {
                 const graphRes = await client.visualizeModel({
                     descriptor: fallback,
@@ -342,6 +373,7 @@ export default function ModelEditorInner(props: IDockviewPanelProps) {
                     expandedNodes,
                 });
                 if (!(graphRes instanceof Error) && !(graphRes as any)?.error) {
+                    syncDescriptorWarnings(graphRes);
                     await renderGraph(graphRes, { relayout: true });
                 }
             }
@@ -363,7 +395,14 @@ export default function ModelEditorInner(props: IDockviewPanelProps) {
             if (detail.graph) {
                 void renderGraph(detail.graph);
             }
-            setCanUndo(true);
+            if (typeof (detail as any).canUndo === "boolean") {
+                setCanUndo((detail as any).canUndo);
+            } else {
+                setCanUndo(true);
+            }
+            if (typeof (detail as any).canRedo === "boolean") {
+                setCanRedo((detail as any).canRedo);
+            }
         });
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [catalog, viewMode, expandedNodes]);
@@ -398,8 +437,28 @@ export default function ModelEditorInner(props: IDockviewPanelProps) {
         return { message: fallback };
     }
 
-    function handleApiError(code: ApiErrorCode | string | undefined, message: string, toastId?: string | number) {
+    function syncHistoryFlags(res: any) {
+        if (typeof res?.canUndo === "boolean") setCanUndo(res.canUndo);
+        if (typeof res?.canRedo === "boolean") setCanRedo(res.canRedo);
+    }
+
+    function syncDescriptorWarnings(res: any) {
+        const fromRes = Array.isArray(res?.warnings) ? res.warnings : null;
+        const fromGraph = Array.isArray(res?.graph?.warnings) ? res.graph.warnings : null;
+        const next = (fromRes ?? fromGraph ?? []).filter(
+            (w: unknown): w is string => typeof w === "string" && w.trim().length > 0,
+        );
+        setDescriptorWarnings(next);
+        if (res?.shapes && typeof res.shapes === "object") setShapes(res.shapes);
+        else if (res?.graph?.shapes && typeof res.graph.shapes === "object") {
+            setShapes(res.graph.shapes);
+        }
+    }
+
+    function handleApiError(code: ApiErrorCode | string | undefined, message: string, toastId?: string | number, res?: any) {
         const opts = { id: toastId, description: message };
+        blockAction("apiError", message || "Operation failed", { code });
+        syncHistoryFlags(res);
         switch (code as ApiErrorCode) {
             case "NO_UNDO_HISTORY":
                 setCanUndo(false);
@@ -414,6 +473,14 @@ export default function ModelEditorInner(props: IDockviewPanelProps) {
                     id: toastId,
                     description: message || "Try Hybrid view or fix node dimensions first.",
                 });
+                return;
+            case "INCOMPATIBLE_SHAPES":
+                toast.warning("Shape warning", opts);
+                if (message) {
+                    setDescriptorWarnings((prev) =>
+                        prev.includes(message) ? prev : [...prev, message],
+                    );
+                }
                 return;
             case "CYCLE_DETECTED":
                 toast.error("Cycle detected — connection creates a loop", opts);
@@ -439,8 +506,16 @@ export default function ModelEditorInner(props: IDockviewPanelProps) {
     // ---------------------------------------------------------------------------
     // Apply edit (persisted)
     // ---------------------------------------------------------------------------
-    async function applyEdit(operation: string, payload: any, persist = false) {
-        if (!client) return;
+    async function applyEdit(
+        operation: string,
+        payload: any,
+        persist = false,
+        expandedOverride?: string[],
+    ) {
+        if (whyBlocked("applyEdit", [
+            { when: !client, reason: "No MYLO agent connected", details: { operation, persist } },
+        ])) return;
+        if(!client) return;
         setBusy(true);
         const toastId = toast.loading("Applying…");
         const currentDescriptor = descriptorRef.current;
@@ -451,25 +526,25 @@ export default function ModelEditorInner(props: IDockviewPanelProps) {
                 payload,
                 persist,
                 viewMode,
-                expandedNodes,
+                expandedNodes: expandedOverride ?? expandedNodes,
             });
 
             if (!res || res instanceof Error || (res as any)?.success === false) {
                 const { code, message } = parseApiFailure(res, "Edit failed");
-                handleApiError(code, message, toastId);
+                handleApiError(code, message, toastId, res);
                 return;
             }
 
             if ((res as any)?.descriptor) setDescriptorState((res as any).descriptor);
             if ((res as any)?.graph) await renderGraph((res as any).graph);
-            if ((res as any)?.shapes) setShapes((res as any).shapes);
-            // After a successful edit, re-enable undo
-            setCanUndo(true);
+            syncDescriptorWarnings(res);
+            syncHistoryFlags(res);
 
-            toast.success((res as any)?.message || "Done", {
-                id: toastId,
-                duration: 2000,
-            });
+            // toast.success((res as any)?.message || "Done", {
+            //     id: toastId,
+            //     duration: 2000,
+            // });
+            toast.dismiss(toastId);
         } catch (e: any) {
             toast.error("Edit failed", {
                 id: toastId,
@@ -484,23 +559,40 @@ export default function ModelEditorInner(props: IDockviewPanelProps) {
     // Preview edit (optimistic, not persisted) — called from debounce
     // ---------------------------------------------------------------------------
     async function previewParams(params: Record<string, any>) {
-        if (!client || !selectedNodeId) return;
+        const nodeId = selectedNodeId;
+        if (whyBlocked("previewParams", [
+            { when: !client, reason: "No MYLO agent connected" },
+            { when: !nodeId, reason: "No node selected for live preview" },
+        ]) || !client || !nodeId) return;
         try {
+            const { payload, expandedNodes: nextExpanded } = buildUpdateNodePayload(
+                nodeId,
+                nodeTypeDraft,
+                params,
+            );
             const res = await client.previewEdit({
                 descriptor: descriptorRef.current,
                 operation: "update_node",
-                payload: { nodeId: selectedNodeId, type: nodeTypeDraft, params },
+                payload,
                 viewMode,
-                expandedNodes,
+                expandedNodes: nextExpanded,
             });
 
-            if (!res || res instanceof Error || (res as any)?.success === false) return;
+            if (!res || res instanceof Error || (res as any)?.success === false) {
+                const { code, message } = parseApiFailure(res, "Preview failed");
+                // Keep UI silent — preview is best-effort — but log why
+                blockAction("previewParams", message, { code, nodeId });
+                return;
+            }
 
             if ((res as any)?.descriptor) setDescriptorState((res as any).descriptor);
             if ((res as any)?.graph) await renderGraph((res as any).graph);
-            if ((res as any)?.shapes) setShapes((res as any).shapes);
-        } catch {
-            // Preview failures are silent
+            syncDescriptorWarnings(res);
+        } catch (e: any) {
+            blockAction("previewParams", "Preview threw — UI stays silent", {
+                error: e?.message || String(e),
+                nodeId,
+            });
         }
     }
 
@@ -508,21 +600,26 @@ export default function ModelEditorInner(props: IDockviewPanelProps) {
     // Undo / Redo
     // ---------------------------------------------------------------------------
     async function handleUndo() {
-        if (!client || !canUndo) return;
+        if (whyBlocked("undo", [
+            { when: !client, reason: "No MYLO agent connected" },
+            { when: !canUndo, reason: "Undo history is empty (canUndo=false)" },
+            { when: busy, reason: "Editor is busy with another operation" },
+        ])) return;
+        if(!client) return;
         setBusy(true);
         const toastId = toast.loading("Undoing…");
         try {
             const res = await client.undo({ viewMode, expandedNodes });
             if (!res || res instanceof Error || (res as any)?.success === false) {
                 const { code, message } = parseApiFailure(res, "Undo failed");
-                handleApiError(code, message, toastId);
+                handleApiError(code, message, toastId, res);
                 return;
             }
             if ((res as any)?.descriptor) setDescriptorState((res as any).descriptor);
             if ((res as any)?.graph) await renderGraph((res as any).graph);
-            if ((res as any)?.shapes) setShapes((res as any).shapes);
-            setCanRedo(true);
-            toast.success("Undone", { id: toastId, duration: 1500 });
+            syncDescriptorWarnings(res);
+            syncHistoryFlags(res);
+            toast.info("Undone", { id: toastId, duration: 1500 });
         } catch (e: any) {
             toast.error("Undo failed", { id: toastId, description: e?.message });
         } finally {
@@ -531,21 +628,26 @@ export default function ModelEditorInner(props: IDockviewPanelProps) {
     }
 
     async function handleRedo() {
-        if (!client || !canRedo) return;
+        if (whyBlocked("redo", [
+            { when: !client, reason: "No MYLO agent connected" },
+            { when: !canRedo, reason: "Redo history is empty (canRedo=false)" },
+            { when: busy, reason: "Editor is busy with another operation" },
+        ])) return;
+        if(!client) return;
         setBusy(true);
         const toastId = toast.loading("Redoing…");
         try {
             const res = await client.redo({ viewMode, expandedNodes });
             if (!res || res instanceof Error || (res as any)?.success === false) {
                 const { code, message } = parseApiFailure(res, "Redo failed");
-                handleApiError(code, message, toastId);
+                handleApiError(code, message, toastId, res);
                 return;
             }
             if ((res as any)?.descriptor) setDescriptorState((res as any).descriptor);
             if ((res as any)?.graph) await renderGraph((res as any).graph);
-            if ((res as any)?.shapes) setShapes((res as any).shapes);
-            setCanUndo(true);
-            toast.success("Redone", { id: toastId, duration: 1500 });
+            syncDescriptorWarnings(res);
+            syncHistoryFlags(res);
+            toast.info("Redone", { id: toastId, duration: 1500 });
         } catch (e: any) {
             toast.error("Redo failed", { id: toastId, description: e?.message });
         } finally {
@@ -560,15 +662,24 @@ export default function ModelEditorInner(props: IDockviewPanelProps) {
                 (e.target as HTMLElement)?.tagName === "INPUT" ||
                 (e.target as HTMLElement)?.tagName === "TEXTAREA" ||
                 (e.target as HTMLElement)?.isContentEditable;
-            if (isInput) return;
+            const wantsUndo =
+                (e.ctrlKey || e.metaKey) && !e.shiftKey && e.key === "z";
+            const wantsRedo =
+                ((e.ctrlKey || e.metaKey) && e.key === "y") ||
+                ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === "z");
+            if (!wantsUndo && !wantsRedo) return;
+            if (isInput) {
+                noteAction(
+                    wantsUndo ? "undo" : "redo",
+                    "Shortcut ignored — focus is in a text field",
+                );
+                return;
+            }
 
-            if ((e.ctrlKey || e.metaKey) && !e.shiftKey && e.key === "z") {
+            if (wantsUndo) {
                 e.preventDefault();
                 void handleUndo();
-            } else if (
-                ((e.ctrlKey || e.metaKey) && e.key === "y") ||
-                ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === "z")
-            ) {
+            } else {
                 e.preventDefault();
                 void handleRedo();
             }
@@ -582,7 +693,11 @@ export default function ModelEditorInner(props: IDockviewPanelProps) {
     // Save / Validate
     // ---------------------------------------------------------------------------
     async function saveDescriptor() {
-        if (!client) return;
+        if (whyBlocked("save", [
+            { when: !client, reason: "No MYLO agent connected" },
+            { when: busy, reason: "Editor is busy with another operation" },
+        ])) return;
+        if(!client) return;
         setBusy(true);
         const toastId = toast.loading("Saving…");
         try {
@@ -596,6 +711,8 @@ export default function ModelEditorInner(props: IDockviewPanelProps) {
             }
             if ((res as any)?.descriptor) setDescriptorState((res as any).descriptor);
             if ((res as any)?.graph) await renderGraph((res as any).graph);
+            syncDescriptorWarnings(res);
+            syncHistoryFlags(res);
 
             // Propagate saved model to project store + open Visualiser panels
             publishSavedModelGraph({
@@ -606,7 +723,16 @@ export default function ModelEditorInner(props: IDockviewPanelProps) {
                 sourcePanelId: props.api.id,
             });
 
-            toast.success("Saved", { id: toastId, duration: 2000 });
+            const saveWarnings = Array.isArray((res as any)?.warnings) ? (res as any).warnings : [];
+            if (saveWarnings.length) {
+                toast.warning("Saved with shape warnings", {
+                    id: toastId,
+                    description: saveWarnings[0],
+                    duration: 5000,
+                });
+            } else {
+                toast.success("Saved", { id: toastId, duration: 2000 });
+            }
         } catch (e: any) {
             toast.error("Save failed", { id: toastId, description: e?.message });
         } finally {
@@ -615,15 +741,34 @@ export default function ModelEditorInner(props: IDockviewPanelProps) {
     }
 
     async function validateDescriptor() {
-        if (!client) return;
+        if (whyBlocked("validate", [
+            { when: !client, reason: "No MYLO agent connected" },
+            { when: busy, reason: "Editor is busy with another operation" },
+        ])) return;
+        if(!client) return;
         setBusy(true);
         const toastId = toast.loading("Validating…");
         try {
-            const res = await client.validateModelDescriptor(descriptorRef.current);
+            // Strict so output-shape / param mismatches surface (same class of
+            // errors that later fail export / Invalid PT2 descriptor).
+            const res = await client.validateModelDescriptor(descriptorRef.current, {
+                strict: true,
+            });
             if (!res || res instanceof Error) throw new Error("Validation request failed");
+
+            syncDescriptorWarnings(res);
+            if ((res as any)?.shapes) setShapes((res as any).shapes);
+
+            const err = (res as any)?.error;
+            const errMessage =
+                typeof err === "string"
+                    ? err
+                    : err?.message || (Array.isArray((res as any)?.warnings) ? (res as any).warnings[0] : null);
+
             if (!(res as any)?.valid) {
-                throw new Error((res as any)?.error?.message || "Invalid descriptor");
+                throw new Error(errMessage || "Invalid descriptor");
             }
+
             if ((res as any)?.descriptor) {
                 setDescriptorState((res as any).descriptor);
                 const graphRes = await client.visualizeModel({
@@ -631,9 +776,22 @@ export default function ModelEditorInner(props: IDockviewPanelProps) {
                     viewMode,
                     expandedNodes,
                 });
-                if (!(graphRes instanceof Error)) await renderGraph(graphRes);
+                if (!(graphRes instanceof Error)) {
+                    syncDescriptorWarnings(graphRes);
+                    await renderGraph(graphRes);
+                }
             }
-            toast.success("Descriptor valid", { id: toastId, duration: 2000 });
+
+            const warnings = Array.isArray((res as any)?.warnings) ? (res as any).warnings : [];
+            if (warnings.length) {
+                toast.warning("Descriptor has shape warnings", {
+                    id: toastId,
+                    description: warnings[0],
+                    duration: 5000,
+                });
+            } else {
+                toast.success("Descriptor valid", { id: toastId, duration: 2000 });
+            }
         } catch (e: any) {
             toast.error("Descriptor invalid", {
                 id: toastId,
@@ -648,7 +806,11 @@ export default function ModelEditorInner(props: IDockviewPanelProps) {
     // View mode
     // ---------------------------------------------------------------------------
     async function toggleViewMode(next: ViewMode) {
-        if (!client) { setViewMode(next); return; }
+        if (!client) {
+            noteAction("toggleViewMode", "No agent — switching view locally only", { next });
+            setViewMode(next);
+            return;
+        }
         setBusy(true);
         try {
             setViewMode(next);
@@ -668,7 +830,7 @@ export default function ModelEditorInner(props: IDockviewPanelProps) {
                 }
                 throw new Error((graphRes as any)?.error || "Failed to render view");
             }
-            if ((graphRes as any)?.shapes) setShapes((graphRes as any).shapes);
+            syncDescriptorWarnings(graphRes);
             await renderGraph(graphRes, { relayout: true });
         } catch (e: any) {
             toast.error("Failed to change view", { description: e?.message });
@@ -678,9 +840,11 @@ export default function ModelEditorInner(props: IDockviewPanelProps) {
     }
 
     async function AutoArangeGraph(){
-        if (!client) return;
+        if (whyBlocked("autoArrange", [
+            { when: !client, reason: "No MYLO agent connected" },
+            { when: !lastGraphRef.current, reason: "No graph loaded yet to arrange" },
+        ])) return;
         const graph = lastGraphRef.current;
-        if (!graph) return;
 
         setBusy(true);
         try {
@@ -705,18 +869,27 @@ export default function ModelEditorInner(props: IDockviewPanelProps) {
     // Expand / Collapse
     // ---------------------------------------------------------------------------
     async function expandSelected() {
-        if (!client || !selectedNodeId) return;
+        const nodeId = selectedNodeId;
+        if (whyBlocked("expandNode", [
+            { when: !client, reason: "No MYLO agent connected" },
+            { when: !nodeId, reason: "No node selected" },
+            {
+                when: nodeId === "input" || nodeId === "output",
+                reason: "input/output nodes cannot be expanded",
+                details: { selectedNodeId: nodeId },
+            },
+        ]) || !client || !nodeId) return;
         setBusy(true);
         try {
             const res = await client.expandModelNodes({
                 descriptor,
-                nodeIds: [selectedNodeId],
+                nodeIds: [nodeId],
                 expandedNodes,
             });
             if (res instanceof Error || (res as any)?.error)
                 throw new Error((res as any)?.error || "Expand failed");
             setExpandedNodes(
-                (res as any)?.expandedNodes || [...expandedNodes, selectedNodeId]
+                (res as any)?.expandedNodes || [...expandedNodes, nodeId]
             );
             setViewMode("hybrid");
             await renderGraph(res, { relayout: true });
@@ -728,19 +901,28 @@ export default function ModelEditorInner(props: IDockviewPanelProps) {
     }
 
     async function collapseSelected() {
-        if (!client || !selectedNodeId) return;
+        const nodeId = selectedNodeId;
+        if (whyBlocked("collapseNode", [
+            { when: !client, reason: "No MYLO agent connected" },
+            { when: !nodeId, reason: "No node selected" },
+            {
+                when: nodeId === "input" || nodeId === "output",
+                reason: "input/output nodes cannot be collapsed",
+                details: { selectedNodeId: nodeId },
+            },
+        ]) || !client || !nodeId) return;
         setBusy(true);
         try {
             const res = await client.collapseModelNodes({
                 descriptor,
-                nodeIds: [selectedNodeId],
+                nodeIds: [nodeId],
                 expandedNodes,
             });
             if (res instanceof Error || (res as any)?.error)
                 throw new Error((res as any)?.error || "Collapse failed");
             setExpandedNodes(
                 (res as any)?.expandedNodes ||
-                expandedNodes.filter((id) => id !== selectedNodeId)
+                expandedNodes.filter((id) => id !== nodeId)
             );
             setViewMode((res as any)?.viewMode || "summary");
             await renderGraph(res, { relayout: true });
@@ -853,14 +1035,24 @@ export default function ModelEditorInner(props: IDockviewPanelProps) {
     // Connection (onConnect) – with checkEdge validation
     // ---------------------------------------------------------------------------
     async function onConnect(connection: Connection) {
-        if (!connection.source || !connection.target) return;
+        if (whyBlocked("connect", [
+            {
+                when: !connection.source || !connection.target,
+                reason: "Connection missing source or target handle",
+                details: { source: connection.source, target: connection.target },
+            },
+        ])) return;
         const source = String(connection.source);
         const target = String(connection.target);
         const sourcePort = connection.sourceHandle ?? "output";
         const targetPort = connection.targetHandle ?? "input";
 
         const guard = connectionGuard(source, target);
-        if (guard) { toast.error(guard); return; }
+        if (guard) {
+            blockAction("connect", guard, { source, target, sourcePort, targetPort });
+            toast.error(guard);
+            return;
+        }
 
         // Validate via checkEdge before committing
         if (client) {
@@ -874,7 +1066,13 @@ export default function ModelEditorInner(props: IDockviewPanelProps) {
                 });
                 if (check && !(check instanceof Error) && (check as any)?.compatible === false) {
                     const err = check as any;
-                    toast.error(err.error || "Incompatible connection", {
+                    const reason = err.error || "Incompatible connection";
+                    blockAction("connect", reason, {
+                        source, target, sourcePort, targetPort,
+                        code: err.code,
+                        availablePorts: err.availablePorts,
+                    });
+                    toast.error(reason, {
                         description: err.availablePorts
                             ? `Available ports: ${err.availablePorts.join(", ")}`
                             : err.code,
@@ -884,9 +1082,15 @@ export default function ModelEditorInner(props: IDockviewPanelProps) {
                 if ((check as any)?.warnings?.length) {
                     (check as any).warnings.forEach((w: string) => toast.warning(w));
                 }
-            } catch {
+            } catch (e: any) {
                 // checkEdge is best-effort — proceed anyway
+                noteAction("connect", "checkEdge failed — proceeding with add_edge anyway", {
+                    error: e?.message || String(e),
+                    source, target, sourcePort, targetPort,
+                });
             }
+        } else {
+            noteAction("connect", "No agent — skipping checkEdge, applyEdit will also be blocked");
         }
 
         await applyEdit(
@@ -903,7 +1107,7 @@ export default function ModelEditorInner(props: IDockviewPanelProps) {
         const base =
             (type || "node").replace(/[^a-zA-Z0-9]+/g, "_").toLowerCase() || "node";
         const existing = new Set<string>(
-            (descriptor?.nodes || []).map((n: any) => String(n.id))
+            (descriptorRef.current?.nodes || []).map((n: any) => String(n.id))
         );
         let idx = 1;
         let candidate = `${base}_${idx}`;
@@ -912,6 +1116,52 @@ export default function ModelEditorInner(props: IDockviewPanelProps) {
             candidate = `${base}_${idx}`;
         }
         return candidate;
+    }
+
+    /**
+     * Build an update_node payload. When the type changes, also rename the node
+     * so the canvas label (which is the node id) matches the new type.
+     */
+    function buildUpdateNodePayload(
+        nodeId: string,
+        type: string,
+        params: Record<string, any>,
+    ): { payload: Record<string, any>; expandedNodes: string[] } {
+        const payload: Record<string, any> = { nodeId, type, params };
+        let nextExpanded = expandedNodes;
+
+        if (nodeId === "input" || nodeId === "output") {
+            return { payload, expandedNodes: nextExpanded };
+        }
+
+        const current = (descriptorRef.current?.nodes || []).find(
+            (n: any) => String(n.id) === String(nodeId),
+        );
+        const currentType = String(current?.type || "");
+        if (!currentType || currentType === type) {
+            return { payload, expandedNodes: nextExpanded };
+        }
+
+        const newNodeId = nextNodeIdForType(type);
+        payload.newNodeId = newNodeId;
+
+        const prev = nodesRef.current.find((n) => String(n.id) === String(nodeId));
+        if (prev) {
+            pendingPositionsRef.current[newNodeId] = {
+                x: prev.position.x,
+                y: prev.position.y,
+            };
+        }
+
+        // Selection / expand lists must track the rename before renderGraph runs
+        setSelectedNodeId(newNodeId);
+        selectedNodeIdRef.current = newNodeId;
+        if (expandedNodes.includes(nodeId)) {
+            nextExpanded = expandedNodes.map((id) => (id === nodeId ? newNodeId : id));
+            setExpandedNodes(nextExpanded);
+        }
+
+        return { payload, expandedNodes: nextExpanded };
     }
 
     function paramsForType(type: string): Record<string, any> {
@@ -939,10 +1189,13 @@ export default function ModelEditorInner(props: IDockviewPanelProps) {
     }
 
     async function addNodeAtPosition(type: string) {
-        if (!contextMenu) return;
+        const menu = contextMenu;
+        if (whyBlocked("addNodeAtPosition", [
+            { when: !menu, reason: "Context menu closed — no drop position" },
+        ]) || !menu) return;
         const flowPos = screenToFlowPosition({
-            x: contextMenu.clientX,
-            y: contextMenu.clientY,
+            x: menu.clientX,
+            y: menu.clientY,
         });
         const params = paramsForType(type);
         const nodeId = nextNodeIdForType(type);
@@ -956,27 +1209,41 @@ export default function ModelEditorInner(props: IDockviewPanelProps) {
     // ---------------------------------------------------------------------------
     // Delete handlers
     // ---------------------------------------------------------------------------
-    async function onNodesDelete(deletedNodes: Node[]) {
+    // Single onDelete avoids a race where parallel onEdgesDelete + onNodesDelete
+    // both edit from the same descriptor and the edge write can "win", leaving
+    // an isolated node after the edges were stripped.
+    async function onDelete({ nodes: deletedNodes, edges: deletedEdges }: { nodes: Node[]; edges: Edge[] }) {
         const deletedIds = new Set(deletedNodes.map((n) => String(n.id)));
         if (selectedNodeIdRef.current && deletedIds.has(String(selectedNodeIdRef.current))) {
             setSelectedNodeId(null);
             selectedNodeIdRef.current = null;
             setSelected(null);
         }
+
+        const removedNodeIds = new Set<string>();
         for (const node of deletedNodes) {
             const id = String(node.id);
-            if (id === "input" || id === "output") continue;
+            if (id === "input" || id === "output") {
+                blockAction("remove_node", "input/output nodes are protected and cannot be deleted", {
+                    nodeId: id,
+                });
+                continue;
+            }
+            removedNodeIds.add(id);
+            // remove_node also strips incident edges on the agent
             await applyEdit("remove_node", { nodeId: id }, false);
         }
-    }
 
-    async function onEdgesDelete(deletedEdges: Edge[]) {
         for (const edge of deletedEdges) {
+            const source = String(edge.source);
+            const target = String(edge.target);
+            // Already cleared by remove_node — skip so we don't race-restore the node
+            if (removedNodeIds.has(source) || removedNodeIds.has(target)) continue;
             await applyEdit(
                 "remove_edge",
                 {
-                    source: String(edge.source),
-                    target: String(edge.target),
+                    source,
+                    target,
                     sourcePort: edge.sourceHandle ?? undefined,
                     targetPort: edge.targetHandle ?? undefined,
                 },
@@ -1012,8 +1279,20 @@ export default function ModelEditorInner(props: IDockviewPanelProps) {
             return;
         }
         const template = templateFieldsForType(nodeTypeDraft);
-        if (template.length === 0) { toast.message("No template for this type yet"); return; }
-        if (!overwrite && nodeParamFields.length > 0) return;
+        if (template.length === 0) {
+            blockAction("applyTemplate", "No hardcoded template for this node type", {
+                nodeType: nodeTypeDraft,
+            });
+            toast.message("No template for this type yet");
+            return;
+        }
+        if (!overwrite && nodeParamFields.length > 0) {
+            blockAction("applyTemplate", "Skipped — fields already set and overwrite=false", {
+                nodeType: nodeTypeDraft,
+                existingFieldCount: nodeParamFields.length,
+            });
+            return;
+        }
         setNodeParamFields(template);
     }
 
@@ -1021,7 +1300,7 @@ export default function ModelEditorInner(props: IDockviewPanelProps) {
     // Title
     // ---------------------------------------------------------------------------
     const title = fileName ? `Model Editor — ${fileName}` : "Model Editor";
-
+    const prefs = usePrefsStore();
     // ---------------------------------------------------------------------------
     // Render
     // ---------------------------------------------------------------------------
@@ -1030,7 +1309,7 @@ export default function ModelEditorInner(props: IDockviewPanelProps) {
             {/* Toolbar */}
             <div className={Style.nav}>
                 <div className="flex gap-2 overflow-hidden items-center">
-                    {fileName && <span className="text-xs opacity-60 truncate">{fileName}</span>}
+                    {fileName && <span className="text-m opacity-60 truncate">{fileName}</span>}
                 </div>
 
                 <div className="flex flex-wrap items-center gap-2">
@@ -1038,7 +1317,11 @@ export default function ModelEditorInner(props: IDockviewPanelProps) {
                     <button
                         onClick={handleUndo}
                         disabled={busy || !client || !canUndo}
-                        title="Undo (Ctrl+Z)"
+                        title={disabledReason([
+                            { when: !client, reason: "No MYLO agent connected" },
+                            { when: busy, reason: "Editor is busy" },
+                            { when: !canUndo, reason: "Nothing to undo" },
+                        ]) || "Undo (Ctrl+Z)"}
                         className="opacity-70 hover:opacity-100 disabled:opacity-30 transition text-sm px-2"
                     >
                         ↩
@@ -1046,7 +1329,11 @@ export default function ModelEditorInner(props: IDockviewPanelProps) {
                     <button
                         onClick={handleRedo}
                         disabled={busy || !client || !canRedo}
-                        title="Redo (Ctrl+Y)"
+                        title={disabledReason([
+                            { when: !client, reason: "No MYLO agent connected" },
+                            { when: busy, reason: "Editor is busy" },
+                            { when: !canRedo, reason: "Nothing to redo" },
+                        ]) || "Redo (Ctrl+Y)"}
                         className="opacity-70 hover:opacity-100 disabled:opacity-30 transition text-sm px-2"
                     >
                         ↪
@@ -1080,7 +1367,11 @@ export default function ModelEditorInner(props: IDockviewPanelProps) {
                     <button
                         onClick={() => void AutoArangeGraph()}
                         disabled={busy || !client}
-                        title="Auto-Arrange nodes"
+                        title={disabledReason([
+                            { when: !client, reason: "No MYLO agent connected" },
+                            { when: busy, reason: "Editor is busy" },
+                            { when: !lastGraphRef.current, reason: "No graph loaded yet" },
+                        ]) || "Auto-Arrange nodes"}
                         className="opacity-70 hover:opacity-100 disabled:opacity-30 transition text-sm px-2"
                     >
                         <i className="fa-solid fa-arrows-rotate" />
@@ -1088,19 +1379,31 @@ export default function ModelEditorInner(props: IDockviewPanelProps) {
 
                     <div className="mx-1 h-5 w-px bg-[var(--light-highlight)]/90" />
 
-                    <button onClick={validateDescriptor} disabled={busy || !client} title={"Validate descriptor"}>
+                    <button
+                        onClick={validateDescriptor}
+                        disabled={busy || !client}
+                        title={disabledReason([
+                            { when: !client, reason: "No MYLO agent connected" },
+                            { when: busy, reason: "Editor is busy" },
+                        ]) || "Validate descriptor"}
+                    >
                         <i className="fa-solid fa-check"></i>
                     </button>
                     <button
                         onClick={saveDescriptor}
                         disabled={busy || !client}
                         className={Style.save}
-                        title="Save model"
+                        title={disabledReason([
+                            { when: !client, reason: "No MYLO agent connected" },
+                            { when: busy, reason: "Editor is busy" },
+                        ]) || "Save model"}
                     >
                         <i className="fa-solid fa-floppy-disk"></i>
                     </button>
                 </div>
             </div>
+
+
 
             {/* Canvas + panel */}
             <div className="flex h-full min-h-0 w-full relative">
@@ -1111,8 +1414,7 @@ export default function ModelEditorInner(props: IDockviewPanelProps) {
                         nodeTypes={NODE_TYPES}
                         onNodesChange={onNodesChange}
                         onEdgesChange={onEdgesChange}
-                        onNodesDelete={onNodesDelete}
-                        onEdgesDelete={onEdgesDelete}
+                        onDelete={onDelete}
                         onSelectionChange={onSelectionChange}
                         onConnect={onConnect}
                         connectOnClick={false}
@@ -1131,7 +1433,7 @@ export default function ModelEditorInner(props: IDockviewPanelProps) {
                         }}
                         deleteKeyCode={["Delete", "Backspace"]}
                         fitView
-                        colorMode="dark"
+                        colorMode={prefs.theme === "dark" ? "dark" : "light"}
                     >
                         <Background />
                         <Controls />
@@ -1155,7 +1457,6 @@ export default function ModelEditorInner(props: IDockviewPanelProps) {
                         />
                     )}
                 </div>
-
                 <NodeSettingsPanel
                     selectedNodeId={selectedNodeId}
                     descriptor={descriptor}
@@ -1174,13 +1475,15 @@ export default function ModelEditorInner(props: IDockviewPanelProps) {
                     client={client}
                     insertableTypes={insertableTypes}
                     swappableActivations={swappableActivations}
-                    onApplyChanges={(params) =>
-                        applyEdit(
-                            "update_node",
-                            { nodeId: selectedNodeId!, type: nodeTypeDraft, params },
-                            true
-                        )
-                    }
+                    onApplyChanges={(params) => {
+                        const { payload, expandedNodes: nextExpanded } =
+                            buildUpdateNodePayload(
+                                selectedNodeId!,
+                                nodeTypeDraft,
+                                params,
+                            );
+                        applyEdit("update_node", payload, true, nextExpanded);
+                    }}
                     onDeleteNode={() =>
                         applyEdit("remove_node", { nodeId: selectedNodeId! }, false)
                     }

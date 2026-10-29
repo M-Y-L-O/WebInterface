@@ -288,8 +288,16 @@ export async function executeAiTool(
             }
 
             case "open_dashboard_panel": {
+                const component = String(args.component);
+                if (component === "Settings") {
+                    return {
+                        opened: false,
+                        error:
+                            "Settings is a page at /settings, not a dashboard panel. Ask the user to open it from Home → profile menu.",
+                    };
+                }
                 return openPanel(
-                    String(args.component),
+                    component,
                     args.id ? String(args.id) : undefined,
                     args.title ? String(args.title) : undefined,
                 );

@@ -11,6 +11,7 @@ import {
     GraphEdge, GraphNode, colorNode, nodeDefaults,
     simplifyNodeName, layoutElements
 } from "@/lib/windows/visualiserHelpers";
+import {usePrefsStore} from "@/lib/settings/prefsStore";
 
 function resolveVisualisation(raw: any) {
     if (!raw) return null;
@@ -50,6 +51,7 @@ export default function VisualiserCore({
     const [nodes, setNodes, onNodesChange] = useNodesState([]);
     const [edges, setEdges, onEdgeChange] = useEdgesState([]);
     const [parsed, setParsed] = useState<any>(null);
+    const prefs = usePrefsStore();
 
     const sourceVisualisation = useMemo(() => {
         return resolveVisualisation(visualisation);
@@ -178,7 +180,7 @@ export default function VisualiserCore({
                 onEdgesChange={interactive ? onEdgeChange : undefined}
                 onSelectionChange={interactive ? handleSelectionChange : undefined}
                 fitView
-                colorMode={"dark"}
+                colorMode={prefs.theme === "dark" ? "dark" : "light"}
                 nodesDraggable={interactive}
                 nodesConnectable={false}
                 elementsSelectable={interactive}

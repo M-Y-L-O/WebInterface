@@ -9,7 +9,7 @@ export const authOptions: NextAuthOptions = {
     providers: [
         Google({
             clientId: process.env.GOOGLE_ID!,
-            clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
+            clientSecret: process.env.GOOGLE_SECRET!,
         }),
         Github({
             clientId: process.env.GITHUB_ID!,

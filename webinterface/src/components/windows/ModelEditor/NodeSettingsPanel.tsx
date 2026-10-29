@@ -3,6 +3,7 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { ParamField, ParamFieldType, Catalog, CatalogParamBlueprint } from "./types";
 import { blueprintToFields, fieldsToParams, templateFieldsForType } from "./helpers";
+import { blockAction, disabledReason, noteAction } from "./actionBlock";
 import Style from "./ModelEditor.module.css";
 import Dropdown from "@/components/structural/Dropdown";
 
@@ -50,12 +51,12 @@ interface BlueprintFieldProps {
 function BlueprintField({ paramKey, schema, value, disabled, onChange }: BlueprintFieldProps) {
     const [showHelp, setShowHelp] = useState(false);
 
-    const inputClass = "w-full rounded-lg border border-[var(--light-highlight)] bg-[var(--card-background)] px-2.5 py-1.5 text-xs text-white focus:border-[var(--accent-color)] focus:outline-none transition";
+    const inputClass = "w-full rounded-lg border border-[var(--light-highlight)] bg-[var(--card-background)] px-2.5 py-1.5 text-xs text-[var(--text)] focus:border-[var(--accent-color)] focus:outline-none transition";
 
     return (
         <div className="flex flex-col gap-0.5">
             <div className="flex items-center gap-1.5">
-                <label className="text-[10px] font-semibold text-white/70 flex-1" title={schema.description}>
+                <label className="text-[10px] font-semibold text-[var(--text)] flex-1" title={schema.description}>
                     {schema.label}
                     {schema.required && <span className="text-red-400 ml-0.5">*</span>}
                 </label>
@@ -72,7 +73,7 @@ function BlueprintField({ paramKey, schema, value, disabled, onChange }: Bluepri
                 {schema.description && (
                     <button
                         type="button"
-                        className="text-[9px] text-white/30 hover:text-white/70 transition"
+                        className="text-[9px] text-[var(--text-light)] hover:text-[var(--text)] transition"
                         onClick={() => setShowHelp(v => !v)}
                         title="Toggle description"
                     >
@@ -82,7 +83,7 @@ function BlueprintField({ paramKey, schema, value, disabled, onChange }: Bluepri
             </div>
 
             {showHelp && schema.description && (
-                <p className="text-[9px] text-white/40 bg-white/5 rounded px-2 py-1 leading-relaxed">
+                <p className="text-[9px] text-[var(--text-light)] bg-white/5 rounded px-2 py-1 leading-relaxed">
                     {schema.description}
                 </p>
             )}
@@ -96,7 +97,7 @@ function BlueprintField({ paramKey, schema, value, disabled, onChange }: Bluepri
                         onChange={(e) => onChange(e.target.checked ? "true" : "false")}
                         className="accent-[var(--primary)] w-4 h-4"
                     />
-                    <span className="text-[10px] text-white/50">{value === "true" ? "Enabled" : "Disabled"}</span>
+                    <span className="text-[10px] text-[var(--text)]">{value === "true" ? "Enabled" : "Disabled"}</span>
                 </div>
             ) : schema.type === "integer" || schema.type === "float" ? (
                 <input
@@ -181,9 +182,14 @@ export default function NodeSettingsPanel({
             const converted = fieldsToParams(nodeParamFields.map(f =>
                 f.key === key ? { ...f, value } : f
             ));
-            if (converted.params && onPreviewParams) {
-                onPreviewParams(converted.params);
+            if (!converted.params) {
+                noteAction("previewParams", "Skipped live preview — invalid field values", {
+                    error: converted.error,
+                    fieldKey: key,
+                });
+                return;
             }
+            if (onPreviewParams) onPreviewParams(converted.params);
         }, 300);
     };
 
@@ -202,7 +208,7 @@ export default function NodeSettingsPanel({
                         {/* Node ID badge */}
                         <div className="flex items-center gap-2 bg-[var(--accent-color)]/10 rounded-xl px-3 py-2">
                             <label className="text-[10px] uppercase font-bold tracking-wider opacity-50">Node ID</label>
-                            <div className="font-mono text-xs text-white/90 flex-1 truncate">{selectedNodeId}</div>
+                            <div className="font-mono text-xs text-[var(--text)] flex-1 truncate">{selectedNodeId}</div>
                             {nodeShape && (
                                 <span
                                     className="text-[9px] text-[var(--accent-color)] opacity-70 shrink-0 font-mono"
@@ -259,7 +265,7 @@ export default function NodeSettingsPanel({
                                             {hasAdvanced && (
                                                 <button
                                                     type="button"
-                                                    className="self-start text-[10px] text-white/40 hover:text-white/70 transition flex items-center gap-1"
+                                                    className="self-start text-[10px] text-[var(--text-light)] hover:text-[var(--text)] transition flex items-center gap-1"
                                                     onClick={() => setShowAdvanced(v => !v)}
                                                 >
                                                     <span className={`transition-transform ${showAdvanced ? "rotate-90" : ""}`}>▶</span>
@@ -285,23 +291,22 @@ export default function NodeSettingsPanel({
                                                 <div className="text-xs opacity-40 p-2 text-center">No parameters defined.</div>
                                             )}
                                             {nodeParamFields.map((field) => (
-                                                <div key={`update-${field.id}`} className="grid grid-cols-[1fr_70px_1fr_auto] gap-1.5 items-center">
+                                                <div key={`update-${field.id}`} className="flex flex-row gap-1.5 flex-nowrap items-center justify-evenly w-full">
                                                     <input
                                                         placeholder="name"
                                                         value={field.key}
                                                         onChange={(e) => updateParamField(field.id, { key: e.target.value })}
                                                         disabled={busy || !client}
                                                     />
-                                                    <select
-                                                        value={field.type}
-                                                        onChange={(e) => updateParamField(field.id, { type: e.target.value as ParamFieldType })}
-                                                        disabled={busy || !client}
-                                                    >
-                                                        <option value="string">str</option>
-                                                        <option value="number">num</option>
-                                                        <option value="boolean">bool</option>
-                                                        <option value="json">json</option>
-                                                    </select>
+                                                    <div className={"w-full"}>
+                                                        <Dropdown
+                                                            defaultValue={field.type.toString()}
+                                                            onChange={(e) => updateParamField(field.id, { type: e as ParamFieldType })}
+                                                            options={["string", "number", "boolean", "json"]}
+                                                            small={true}
+                                                        >
+                                                        </Dropdown>
+                                                    </div>
                                                     <input
                                                         placeholder="value"
                                                         value={field.value}
@@ -312,13 +317,20 @@ export default function NodeSettingsPanel({
                                                                 const converted = fieldsToParams(nodeParamFields.map(f =>
                                                                     f.id === field.id ? { ...f, value: e.target.value } : f
                                                                 ));
-                                                                if (converted.params && onPreviewParams) onPreviewParams(converted.params);
+                                                                if (!converted.params) {
+                                                                    noteAction("previewParams", "Skipped live preview — invalid field values", {
+                                                                        error: converted.error,
+                                                                        fieldId: field.id,
+                                                                    });
+                                                                    return;
+                                                                }
+                                                                if (onPreviewParams) onPreviewParams(converted.params);
                                                             }, 300);
                                                         }}
                                                         disabled={busy || !client}
                                                     />
                                                     <button
-                                                        className="text-white/40 hover:text-red-400 p-1 text-xs transition"
+                                                        className="text-[var(--text-light)] hover:text-red-400 p-1 text-xs transition"
                                                         onClick={() => removeParamField(field.id)}
                                                         disabled={busy || !client}
                                                         title="Remove field"
@@ -328,7 +340,7 @@ export default function NodeSettingsPanel({
                                                 </div>
                                             ))}
                                             <button
-                                                className="mt-1 self-start rounded-lg border border-dashed border-[var(--border-color)] px-2.5 py-1 text-[11px] text-white/60 transition hover:bg-[var(--card-background)] hover:text-white w-full"
+                                                className="mt-1 self-start rounded-lg border border-dashed border-[var(--border-color)] px-2.5 py-1 text-[11px] text-[var(--text-light)] transition hover:bg-[var(--card-background)] hover:text-[var(--text)] w-full"
                                                 onClick={addParamField}
                                                 disabled={busy || !client}
                                             >
@@ -343,17 +355,32 @@ export default function NodeSettingsPanel({
                                     <button
                                         className={`${Style.save} w-[15rem]`}
                                         disabled={busy || !client || !selectedNodeId}
+                                        title={disabledReason([
+                                            { when: !client, reason: "No MYLO agent connected" },
+                                            { when: busy, reason: "Editor is busy" },
+                                            { when: !selectedNodeId, reason: "No node selected" },
+                                        ]) || "Apply parameter changes"}
                                         onClick={() => {
                                             const converted = fieldsToParams(nodeParamFields);
-                                            if (!converted.params) return;
+                                            if (!converted.params) {
+                                                blockAction("applyChanges", converted.error || "Could not convert fields to params", {
+                                                    selectedNodeId,
+                                                    fieldCount: nodeParamFields.length,
+                                                });
+                                                return;
+                                            }
                                             onApplyChanges(converted.params);
                                         }}
                                     >
                                         Apply Changes
                                     </button>
                                     <button
-                                        className="rounded-[0.5rem] border-2 border-red-500/30 hover:border-red-500/60 bg-red-950/20 hover:bg-red-950/40 text-red-400 px-[1rem] py-[0.5rem] text-xs transition w-[4rem]"
+                                        className="rounded-[0.5rem] border-2 border-red-500/30 hover:border-red-500/60 bg-red-950/20 hover:bg-red-500 text-red-400 hover:text-[var(--card-background)] px-[1rem] py-[0.5rem] text-xs transition w-[4rem]"
                                         disabled={busy || !client}
+                                        title={disabledReason([
+                                            { when: !client, reason: "No MYLO agent connected" },
+                                            { when: busy, reason: "Editor is busy" },
+                                        ]) || "Delete node"}
                                         onClick={onDeleteNode}
                                     >
                                         <i className="fa-solid fa-trash"></i>
@@ -363,13 +390,13 @@ export default function NodeSettingsPanel({
                         )}
 
                         {selectedNodeId === "input" && (
-                            <div className="text-xs text-white/50 bg-white/5 p-2.5 rounded-xl border border-white/5 leading-relaxed">
+                            <div className="text-xs text-[var(--text-light)] bg-white/5 p-2.5 rounded-xl border border-white/5 leading-relaxed">
                                 The <code className="text-[var(--accent-color)]">input</code> node represents the initial
                                 input tensor to the model. Its shape is configured globally.
                             </div>
                         )}
                         {selectedNodeId === "output" && (
-                            <div className="text-xs text-white/50 bg-white/5 p-2.5 rounded-xl border border-white/5 leading-relaxed">
+                            <div className="text-xs text-[var(--text-light)] bg-white/5 p-2.5 rounded-xl border border-white/5 leading-relaxed">
                                 The <code className="text-[var(--accent-color)]">output</code> node represents the final
                                 output sink of the model. Its shape must match the target task.
                             </div>
@@ -378,6 +405,14 @@ export default function NodeSettingsPanel({
                         <button
                             className="rounded-full border border-[var(--light-highlight)] px-3 py-1 text-[11px] transition hover:bg-[var(--background)] disabled:opacity-40"
                             disabled={busy || !client || selectedNodeId === "input" || selectedNodeId === "output"}
+                            title={disabledReason([
+                                { when: !client, reason: "No MYLO agent connected" },
+                                { when: busy, reason: "Editor is busy" },
+                                {
+                                    when: selectedNodeId === "input" || selectedNodeId === "output",
+                                    reason: "input/output nodes cannot be expanded",
+                                },
+                            ]) || "Expand selected node"}
                             onClick={onExpandNode}
                         >
                             Expand Node
@@ -385,6 +420,14 @@ export default function NodeSettingsPanel({
                         <button
                             className="rounded-full border border-[var(--light-highlight)] px-3 py-1 text-[11px] transition hover:bg-[var(--background)] disabled:opacity-40"
                             disabled={busy || !client || selectedNodeId === "input" || selectedNodeId === "output"}
+                            title={disabledReason([
+                                { when: !client, reason: "No MYLO agent connected" },
+                                { when: busy, reason: "Editor is busy" },
+                                {
+                                    when: selectedNodeId === "input" || selectedNodeId === "output",
+                                    reason: "input/output nodes cannot be collapsed",
+                                },
+                            ]) || "Collapse selected node"}
                             onClick={onCollapseNode}
                         >
                             Collapse Node
@@ -397,21 +440,21 @@ export default function NodeSettingsPanel({
                 <>
                     <h1>Blueprint Editor</h1>
                     <div>
-                        <div className="flex flex-col gap-4 text-xs text-white/70">
+                        <div className="flex flex-col gap-4 text-xs text-[var(--text-light)]">
 
                             <div>
-                                <span className="font-semibold block text-white/95 mb-1">Canvas Controls</span>
-                                <ul className="list-disc pl-4 space-y-1.5 text-white/60">
-                                    <li><strong className="text-white/80">Right Click</strong> on pane to add nodes.</li>
-                                    <li><strong className="text-white/80">Click + Drag</strong> port handles to connect.</li>
-                                    <li><strong className="text-white/80">Delete / Backspace</strong> to remove selected.</li>
-                                    <li><strong className="text-white/80">Ctrl+Z / Ctrl+Y</strong> to undo / redo.</li>
-                                    <li><strong className="text-white/80">Select</strong> node to customize parameters.</li>
+                                <span className="font-semibold block text-[var(--text-light)] mb-1">Canvas Controls</span>
+                                <ul className="list-disc pl-4 space-y-1.5 text-[var(--text)]">
+                                    <li><strong className="text-[var(--text-light)]">Right Click</strong> on pane to add nodes.</li>
+                                    <li><strong className="text-[var(--text-light)]">Click + Drag</strong> port handles to connect.</li>
+                                    <li><strong className="text-[var(--text-light)]">Delete / Backspace</strong> to remove selected.</li>
+                                    <li><strong className="text-[var(--text-light)]">Ctrl+Z / Ctrl+Y</strong> to undo / redo.</li>
+                                    <li><strong className="text-[var(--text-light)]">Select</strong> node to customize parameters.</li>
                                 </ul>
                             </div>
 
-                            <div className="border-t border-[var(--light-highlight)]/50 pt-3">
-                                <span className="font-semibold block text-white/95 mb-1.5">Quick Add Preset</span>
+                            <div className="border-t border-[var(--light-highlight)] pt-3">
+                                <span className="font-semibold block text-[var(--text-light)] mb-1.5">Quick Add Preset</span>
                                 <div className="flex items-center gap-2">
                                     <Dropdown
                                         onChange={(e) => setQuickAddType(e)}
@@ -419,9 +462,13 @@ export default function NodeSettingsPanel({
                                         defaultValue={insertableTypes[0]}
                                     />
                                     <button
-                                        className="rounded-xl border border-[var(--light-highlight)] bg-[var(--card-background)] px-3 py-1.5 text-xs transition hover:bg-neutral-800 disabled:opacity-40 font-semibold text-white"
+                                        className="rounded-xl border border-[var(--light-highlight)] bg-[var(--card-background)] px-3 py-1.5 text-xs transition hover:bg-neutral-800 disabled:opacity-40 font-semibold text-[var(--text-light)]"
                                         onClick={quickAddNodeFromCanvas}
                                         disabled={busy || !client}
+                                        title={disabledReason([
+                                            { when: !client, reason: "No MYLO agent connected" },
+                                            { when: busy, reason: "Editor is busy" },
+                                        ]) || "Add node from preset"}
                                     >
                                         Add
                                     </button>

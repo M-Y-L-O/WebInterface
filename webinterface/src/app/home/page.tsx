@@ -17,11 +17,12 @@ import {
 import ProjectsPage from "@/components/pages/ProjectsPage";
 import ConfigsPage from "@/components/pages/ConfigsPage";
 import CatalogPage from "@/components/pages/CatalogPage";
+import SettingsPage from "@/components/pages/SettingsPage";
 import {AnimatePresence, motion} from "framer-motion";
 import {provisionCloudSession} from "@/lib/cloud/sessionClient";
 import {getCloudEnabled} from "@/lib/cloud/flags";
 import {Session} from "next-auth";
-import Dropdown from "@/components/structural/Dropdown";
+import {usePrefsStore} from "@/lib/settings/prefsStore";
 
 export default function Home() {
     const [activeConfig, setActiveConfig] = useState<number|undefined|null>();
@@ -35,6 +36,8 @@ export default function Home() {
     const status = useClientStore(state => state.status);
     const connect = useClientStore(state => state.connect);
     const clearClient = useClientStore(state => state.clearClient);
+
+    const prefs = usePrefsStore();
 
     const configStatus =
         status === "connected" ? "Connected" :
@@ -103,6 +106,7 @@ export default function Home() {
             }
 
             setActiveConfig(null);
+            console.log(result.status);
             if (result.status === "timed_out") {
                 toast.error("Connection timed out", { description:"Client probably offline"});
             } else {
@@ -132,9 +136,9 @@ export default function Home() {
 
     return (
         <main>
-                <a className={"hero"} href={"/"}>
-                    <img src={"/wordmark.svg"}/>
-                </a>
+            <a className={"hero"} href={"/"}>
+                <img src={prefs.theme == "dark" ? "/wordmark.svg" : "/wordmark-dark.svg"}/>
+            </a>
             <nav className={"navBar"}>
                 <div className={"navBarItems"}>
                     <button onClick={()=>{setOpenPage(0)}}>
@@ -196,8 +200,8 @@ export default function Home() {
                     </button>
                     <Link href="/docs">Docs</Link>
                 </div>
-                <div className={"profile"}>
-                    <button onClick={()=>{setProfileDropdown(!profileDropdown)}} className={ profileDropdown ? "profileButton border border-2 border-[var(--primary)] rounded-full" : "profileButton"}>
+                <div className={"profileHolder"}>
+                    <button onClick={()=>{setProfileDropdown(!profileDropdown)}} className={ profileDropdown || openPage == 3 ? "profile activeProfile" : "profile"}>
                         {
                             session?.user?.image ? <img src={session.user.image}/> : (<i className={"fa-solid fa-circle-user"} style={{fontSize:"3rem"}}></i>)
                         }
@@ -205,8 +209,11 @@ export default function Home() {
                     <AnimatePresence>
                     {
                         profileDropdown &&
-                        <motion.div className={"dropdown"} initial={{height:0, opacity:0}} animate={{height:80, opacity:1}} exit={{height:0, opacity:0}} transition={{duration:0.2}}>
-                            <button onClick={()=>{signOut()}}>Sign out <i className={"fa-solid fa-arrow-right-from-bracket"}></i></button>
+                        <motion.div className={"dropdown"} initial={{height:0, opacity:0}} animate={{height:"auto", opacity:1}} exit={{height:0, opacity:0}} transition={{duration:0.2}}>
+                            <button onClick={()=>{setOpenPage(3); setProfileDropdown(false)}} className={"settings"}>
+                                Settings <i className={"fa-solid fa-gear"}></i>
+                            </button>
+                            <button className="signOut" onClick={()=>{signOut()}}>Sign out <i className={"fa-solid fa-arrow-right-from-bracket"}></i></button>
                         </motion.div>
                     }
                     </AnimatePresence>
@@ -224,6 +231,9 @@ export default function Home() {
                 {
                     openPage === 2 &&
                     <CatalogPage clientStatus={configStatus}/>
+                }
+                {
+                    openPage === 3 && <SettingsPage/>
                 }
             </AnimatePresence>
 

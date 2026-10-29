@@ -10,6 +10,7 @@ import {
     type CloudProjectSummary,
 } from "@/lib/storage/cloudProjects";
 import Style from "./page.module.css"
+import {toast} from "sonner";
 
 
 export default function ProjectsPage({activeConfig, clientStatus, onStatusClick, cloudEnabled = true}:{activeConfig:ClientConfig, clientStatus:string, onStatusClick:()=>void, cloudEnabled?: boolean}) {
@@ -60,8 +61,16 @@ export default function ProjectsPage({activeConfig, clientStatus, onStatusClick,
 
     async function uploadProject(){
         const client = useClientStore.getState().client;
-        if(!client)
+        if(!client){
+            toast.error("Connect a client first", {duration: 5000});
             return;
+        }
+
+        if(clientStatus != "Connected")
+        {
+            toast.error("Connect a client first", {duration: 5000});
+            return;
+        }
 
         const res = await OpenProject(client);
         if(res===200){
@@ -154,14 +163,20 @@ export default function ProjectsPage({activeConfig, clientStatus, onStatusClick,
 
     return (
         <div className={Style.container}>
+            <div className={"mt-[1.618rem]"}/>
             <h1 className={Style.title}>Welcome back, {userName}!</h1>
             <div className={Style.section}>
                 <div className={`${Style.list} ml-[1rem]`}>
                     <button className={Style.createButton} onClick={uploadProject}>
                         <h1><i className={"fa-solid fa-file"}/> </h1>
-                        <h2>Open from computer</h2>
+                        <h2>Open</h2>
                     </button>
                     <button className={Style.createButton} onClick={()=>{
+                        if(clientStatus != "Connected")
+                        {
+                            toast.error("Connect a client first", {duration: 5000});
+                            return;
+                        }
                         setNewProjectForm(true);
                         setNewProjectName("");
                     }}>
@@ -171,15 +186,17 @@ export default function ProjectsPage({activeConfig, clientStatus, onStatusClick,
                     <div className={Style.infoCard} onClick={onStatusClick}>
                         <h1>Current Client:</h1>
                         <div>
-                            <h2>Name: {activeConfig ? activeConfig.name : "No config loaded"}</h2>
-                            <h2>Type: {activeConfig ? activeConfig.type : "-"}</h2>
+                            <div className={"flex w-full justify-between"}><h2>Name:</h2> {activeConfig ? activeConfig.name : "No config loaded"}</div>
+                            <div className={"flex w-full justify-between"}><h2>Type:</h2> {activeConfig ? activeConfig.type : "-"}</div>
                         </div>
-                        <div className={"flex gap-[4rem]"}>
+                        <div className={"flex gap-[4rem] w-full justify-between"}>
                             Status:
                             <div className={Style.status} style={{borderColor:clientStatus==="Connected" ? "var(--success)" : "var(--error)"}}>{clientStatus}<div style={{backgroundColor:clientStatus==="Connected" ? "var(--success)" : "var(--error)"}} className={Style.ball}/></div>
                         </div>
                     </div>
                 </div>
+            </div>
+            <div className={Style.section}>
                 <h1 className={Style.title}>Loaded Project:</h1>
                 {
                     activeProject && activeProject.projectData.name ?
@@ -212,11 +229,17 @@ export default function ProjectsPage({activeConfig, clientStatus, onStatusClick,
                                 <i className={"fa-solid fa-box-open"}/>
                             </div>
                             <button onClick={()=>{
+                                if(clientStatus != "Connected")
+                                {
+                                    toast.error("Connect a client first", {duration: 5000});
+                                    return;
+                                }
                                 setNewProjectForm(true);
                                 setNewProjectName("");
                             }}>Create a new project <i className={"fa-solid fa-plus"}/> </button>
                         </div>
                 }
+            </div>
                 {cloudEnabled && (
                     <>
                 <h1 className={Style.title}>Cloud Saved:</h1>
@@ -258,7 +281,7 @@ export default function ProjectsPage({activeConfig, clientStatus, onStatusClick,
                 </div>
                     </>
                 )}
-            </div>
+
             {
                 newProjectForm &&
                 <div className={Style.overlay}>

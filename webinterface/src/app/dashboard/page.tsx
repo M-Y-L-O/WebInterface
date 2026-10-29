@@ -16,6 +16,7 @@ import {
 import { ClientType } from "@/lib/client/ClientTypes";
 import { provisionCloudSession } from "@/lib/cloud/sessionClient";
 import { getCloudEnabled } from "@/lib/cloud/flags";
+import { getConfigs } from "@/lib/db/configs";
 import "./styles.css"
 
 function DashboardInner() {
@@ -51,9 +52,31 @@ function DashboardInner() {
             if (cancelled) return;
             setCloudEnabled(enabled);
 
-            const config = useClientStore.getState().config;
+            let config = useClientStore.getState().config;
             if (!config) {
                 toast.error("No client config found", {duration: 5000});
+                return;
+            }
+
+            // sessionStorage used to strip apiKey; always refresh LOCAL key from DB.
+            if (config.dbId && config.type === ClientType.LOCAL) {
+                try {
+                    const configs = await getConfigs();
+                    const fresh = configs.find((c) => c.dbId === config!.dbId);
+                    if (fresh?.apiKey) {
+                        useClientStore.getState().setConfig(fresh);
+                        config = fresh;
+                    }
+                } catch {
+                    // Keep rehydrated config if DB refresh fails.
+                }
+            }
+
+            if (config.type === ClientType.LOCAL && !config.apiKey) {
+                toast.error("Local client API key missing", {
+                    duration: 6000,
+                    description: "Re-select the client on Home and set its API key.",
+                });
                 return;
             }
 
@@ -89,10 +112,8 @@ function DashboardInner() {
                 return;
             }
 
-            if (result.ok) {
-                toast.success("Connected", {duration: 5000});
-            } else {
-                toast.error("Failed to connect", {
+            if(!result.ok) {
+                toast.error("Failed to connect to client", {
                     duration: 5000,
                     description: result.error || "Unknown error",
                 });
@@ -111,7 +132,7 @@ function DashboardInner() {
                     const full = await client.getProject();
                     if (cancelled) return;
                     if (full && !(full instanceof Error) && full.projectData) {
-                        toast.success("Project created", {duration: 5000});
+                        // toast.success("Project created", {duration: 5000});
                         hydrateFromProject(full);
                         clearSelected();
                         router.replace("/dashboard");

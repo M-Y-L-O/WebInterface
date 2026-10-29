@@ -558,175 +558,176 @@ export default function Diagnostics(props: IDockviewPanelProps) {
                     View Results
                 </button>
             </div>
-
-            <div className={Styles.section}>
-                <h2>Mode</h2>
-                <div className={"flex gap-[1rem]"}>
-                    <button
-                        type="button"
-                        onClick={() => setMode("dummy")}
-                        className={Styles.optionButton}
-                    >
-                        <span className={"relative z-10"} style={mode === "dummy" ? {color: "var(--card-background)"} : {}}>
-                            Dummy
-                        </span>
-                        {mode === "dummy" && (
-                            <motion.div
-                                layoutId={"diagModePill"}
-                                transition={{type: "spring", stiffness: 300, damping: 30, duration: 0.15}}
-                                className={Styles.active}
-                            />
-                        )}
-                    </button>
-                    <button
-                        type="button"
-                        onClick={() => setMode("retrain")}
-                        className={Styles.optionButton}
-                    >
-                        <span className={"relative z-10"} style={mode === "retrain" ? {color: "var(--card-background)"} : {}}>
-                            Retrain
-                        </span>
-                        {mode === "retrain" && (
-                            <motion.div
-                                layoutId={"diagModePill"}
-                                transition={{type: "spring", stiffness: 300, damping: 30, duration: 0.15}}
-                                className={Styles.active}
-                            />
-                        )}
-                    </button>
-                </div>
-                <p className={Styles.emptyHint}>
-                    {mode === "dummy"
-                        ? "Structural checks, dummy forward pass, ONNX export — no training data required."
-                        : "Retrain on CSV features and collect validation metrics."}
-                </p>
-            </div>
-
-            {mode === "retrain" && (
-                <>
-                    {!csv ? (
-                        <div className={Styles.section}>
-                            <p className={Styles.emptyHint}>Load a CSV to use retrain mode.</p>
-                        </div>
-                    ) : (
-                        <>
-                            <div className={Styles.section}>
-                                <h2>Feature select</h2>
-                                <ul>
-                                    {featureKeys.map((key) => (
-                                        <li key={key}>
-                                            <input
-                                                type="checkbox"
-                                                disabled={key === targetFeature}
-                                                checked={selectedFeatures.includes(key)}
-                                                onChange={() => {
-                                                    if (selectedFeatures.includes(key)) {
-                                                        setSelectedFeatures(selectedFeatures.filter(f => f !== key));
-                                                    } else {
-                                                        setSelectedFeatures([...selectedFeatures, key]);
-                                                    }
-                                                }}
-                                            />
-                                            {key}
-                                        </li>
-                                    ))}
-                                </ul>
-                            </div>
-
-                            <div className={Styles.section}>
-                                <h2>Target Feature</h2>
-                                <Dropdown
-                                    onChange={(e) => {
-                                        setTargetFeature(e);
-                                        if (selectedFeatures.includes(e)) {
-                                            setSelectedFeatures(selectedFeatures.filter(f => f !== e));
-                                        }
-                                    }}
-                                    options={featureKeys}
-                                    defaultValue={"Select a feature"}
+            <div className={Styles.settings}>
+                <div className={Styles.section}>
+                    <h2>Mode</h2>
+                    <div className={"flex gap-[1rem]"}>
+                        <button
+                            type="button"
+                            onClick={() => setMode("dummy")}
+                            className={Styles.optionButton}
+                        >
+                            <span className={"relative z-10"} style={mode === "dummy" ? {color: "var(--card-background)"} : {}}>
+                                Dummy
+                            </span>
+                            {mode === "dummy" && (
+                                <motion.div
+                                    layoutId={"diagModePill"}
+                                    transition={{type: "spring", stiffness: 300, damping: 30, duration: 0.15}}
+                                    className={Styles.active}
                                 />
-                            </div>
+                            )}
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => setMode("retrain")}
+                            className={Styles.optionButton}
+                        >
+                            <span className={"relative z-10"} style={mode === "retrain" ? {color: "var(--card-background)"} : {}}>
+                                Retrain
+                            </span>
+                            {mode === "retrain" && (
+                                <motion.div
+                                    layoutId={"diagModePill"}
+                                    transition={{type: "spring", stiffness: 300, damping: 30, duration: 0.15}}
+                                    className={Styles.active}
+                                />
+                            )}
+                        </button>
+                    </div>
+                    <p className={Styles.emptyHint}>
+                        {mode === "dummy"
+                            ? "Structural checks, dummy forward pass, ONNX export — no training data required."
+                            : "Retrain on CSV features and collect validation metrics."}
+                    </p>
+                </div>
 
+                {mode === "retrain" && (
+                    <>
+                        {!csv ? (
                             <div className={Styles.section}>
-                                <h2>Problem type</h2>
-                                <div className={"flex gap-[1rem]"}>
-                                    <button
-                                        type="button"
-                                        onClick={() => setProblemType("regression")}
-                                        className={Styles.optionButton}
-                                    >
-                                        <span className={"relative z-10"} style={problemType === "regression" ? {color: "var(--card-background)"} : {}}>
-                                            Regression
-                                        </span>
-                                        {problemType === "regression" && (
-                                            <motion.div
-                                                layoutId={"diagProblemPill"}
-                                                transition={{type: "spring", stiffness: 300, damping: 30, duration: 0.15}}
-                                                className={Styles.active}
-                                            />
-                                        )}
-                                    </button>
-                                    <button
-                                        type="button"
-                                        onClick={() => setProblemType("classification")}
-                                        className={Styles.optionButton}
-                                    >
-                                        <span className={"relative z-10"} style={problemType === "classification" ? {color: "var(--card-background)"} : {}}>
-                                            Classification
-                                        </span>
-                                        {problemType === "classification" && (
-                                            <motion.div
-                                                layoutId={"diagProblemPill"}
-                                                transition={{type: "spring", stiffness: 300, damping: 30, duration: 0.15}}
-                                                className={Styles.active}
-                                            />
-                                        )}
-                                    </button>
-                                </div>
+                                <p className={Styles.emptyHint}>Load a CSV to use retrain mode.</p>
                             </div>
+                        ) : (
+                            <>
+                                <div className={Styles.section}>
+                                    <h2>Feature select</h2>
+                                    <ul>
+                                        {featureKeys.map((key) => (
+                                            <li key={key}>
+                                                <input
+                                                    type="checkbox"
+                                                    disabled={key === targetFeature}
+                                                    checked={selectedFeatures.includes(key)}
+                                                    onChange={() => {
+                                                        if (selectedFeatures.includes(key)) {
+                                                            setSelectedFeatures(selectedFeatures.filter(f => f !== key));
+                                                        } else {
+                                                            setSelectedFeatures([...selectedFeatures, key]);
+                                                        }
+                                                    }}
+                                                />
+                                                {key}
+                                            </li>
+                                        ))}
+                                    </ul>
+                                </div>
 
-                            <div className={Styles.section}>
-                                <div className={"flex gap-[1rem] justify-evenly"}>
-                                    <div className={Styles.metricCard}>
-                                        <h2>Epochs</h2>
-                                        <input
-                                            type="number"
-                                            defaultValue={10}
-                                            onChange={(e) => setEpochs(parseInt(e.target.value) || 10)}
-                                        />
-                                    </div>
-                                    <div className={Styles.metricCard}>
-                                        <h2>Batch size</h2>
-                                        <input
-                                            type="number"
-                                            defaultValue={32}
-                                            onChange={(e) => setBatchSize(parseInt(e.target.value) || 32)}
-                                        />
-                                    </div>
-                                    <div className={Styles.metricCard}>
-                                        <h2>Learning rate</h2>
-                                        <input
-                                            type="number"
-                                            step="0.0001"
-                                            defaultValue={0.001}
-                                            onChange={(e) => setLearningRate(parseFloat(e.target.value) || 0.001)}
-                                        />
+                                <div className={Styles.section}>
+                                    <h2>Target Feature</h2>
+                                    <Dropdown
+                                        onChange={(e) => {
+                                            setTargetFeature(e);
+                                            if (selectedFeatures.includes(e)) {
+                                                setSelectedFeatures(selectedFeatures.filter(f => f !== e));
+                                            }
+                                        }}
+                                        options={featureKeys}
+                                        defaultValue={"Select a feature"}
+                                    />
+                                </div>
+
+                                <div className={Styles.section}>
+                                    <h2>Problem type</h2>
+                                    <div className={"flex gap-[1rem]"}>
+                                        <button
+                                            type="button"
+                                            onClick={() => setProblemType("regression")}
+                                            className={Styles.optionButton}
+                                        >
+                                            <span className={"relative z-10"} style={problemType === "regression" ? {color: "var(--card-background)"} : {}}>
+                                                Regression
+                                            </span>
+                                            {problemType === "regression" && (
+                                                <motion.div
+                                                    layoutId={"diagProblemPill"}
+                                                    transition={{type: "spring", stiffness: 300, damping: 30, duration: 0.15}}
+                                                    className={Styles.active}
+                                                />
+                                            )}
+                                        </button>
+                                        <button
+                                            type="button"
+                                            onClick={() => setProblemType("classification")}
+                                            className={Styles.optionButton}
+                                        >
+                                            <span className={"relative z-10"} style={problemType === "classification" ? {color: "var(--card-background)"} : {}}>
+                                                Classification
+                                            </span>
+                                            {problemType === "classification" && (
+                                                <motion.div
+                                                    layoutId={"diagProblemPill"}
+                                                    transition={{type: "spring", stiffness: 300, damping: 30, duration: 0.15}}
+                                                    className={Styles.active}
+                                                />
+                                            )}
+                                        </button>
                                     </div>
                                 </div>
-                            </div>
-                        </>
-                    )}
-                </>
-            )}
 
-            <button
-                type="button"
-                onClick={startDiagnostics}
-                className={Styles.startButton}
-                disabled={running || !canStart}
-            >
-                Run diagnostics
-            </button>
+                                <div className={"flex flex-col gap-[0.2rem] p-[1rem] "}>
+                                    <div className={"flex gap-[1rem] justify-evenly"}>
+                                        <div className={Styles.metricCard}>
+                                            <h2>Epochs</h2>
+                                            <input
+                                                type="number"
+                                                defaultValue={10}
+                                                onChange={(e) => setEpochs(parseInt(e.target.value) || 10)}
+                                            />
+                                        </div>
+                                        <div className={Styles.metricCard}>
+                                            <h2>Batch size</h2>
+                                            <input
+                                                type="number"
+                                                defaultValue={32}
+                                                onChange={(e) => setBatchSize(parseInt(e.target.value) || 32)}
+                                            />
+                                        </div>
+                                        <div className={Styles.metricCard}>
+                                            <h2>Learning rate</h2>
+                                            <input
+                                                type="number"
+                                                step="0.0001"
+                                                defaultValue={0.001}
+                                                onChange={(e) => setLearningRate(parseFloat(e.target.value) || 0.001)}
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
+                            </>
+                        )}
+                    </>
+                )}
+
+                <button
+                    type="button"
+                    onClick={startDiagnostics}
+                    className={Styles.startButton}
+                    disabled={running || !canStart}
+                >
+                    Run diagnostics
+                </button>
+            </div>
         </div>
     );
 }

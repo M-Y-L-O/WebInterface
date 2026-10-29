@@ -161,11 +161,8 @@ export default function CatalogPage({
 
     return (
         <div className={Style.container}>
-            <div className={"flex items-center justify-between flex-wrap gap-4 pr-4"}>
-                <h1 className={Style.title}>Model Catalog</h1>
-
-            </div>
-
+            <div className={"mt-[1.618rem]"}/>
+            <h1 className={Style.title}>Model Catalog</h1>
             <div className={Style.section}>
                 <div className={"flex w-full justify-between gap-4 items-center bg-[var(--background)]  px-[0.7rem] py-[0.5rem] rounded-[5rem] mb-4"}>
                     <div className={"flex items-center gap-[3rem]"}>

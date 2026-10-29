@@ -71,7 +71,7 @@ export default function ModelContextMenu({
 
     return (
         <div
-            className="fixed z-50 w-72 rounded-2xl border border-neutral-800/80 bg-neutral-900/95 p-2.5 shadow-2xl backdrop-blur-md text-white select-none"
+            className="fixed z-50 w-72 rounded-2xl border border-[var(--light-highlight)]/80 bg-[var(--card-background)]/95 p-2.5 shadow-2xl backdrop-blur-md text-[var(--text)] select-none"
             style={{
                 left: Math.min(clientX, typeof window !== "undefined" ? window.innerWidth - 300 : clientX),
                 top: Math.min(clientY, typeof window !== "undefined" ? window.innerHeight - 420 : clientY),
@@ -80,14 +80,14 @@ export default function ModelContextMenu({
         >
             <style>{`@keyframes fadeInScale { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }`}</style>
 
-            <div className="flex items-center gap-2 border-b border-white/10 px-2 pb-2 pt-0.5">
-                <span className="text-white/40 text-[10px] font-bold uppercase tracking-wider">Create Node</span>
+            <div className="flex items-center gap-2 border-b border-[var(--light-highlight)]/10 px-2 pb-2 pt-0.5">
+                <span className="text-[var(--text)]/40 text-[10px] font-bold uppercase tracking-wider">Create Node</span>
             </div>
 
             <input
                 ref={inputRef}
                 type="text"
-                className="mt-2 w-full rounded-xl border border-neutral-700 bg-neutral-950/50 px-3 py-2 text-xs text-[var(--light-highlight)] placeholder-white/30 focus:border-[var(--accent-color)] focus:outline-none focus:ring-1 focus:ring-[var(--accent-color)]"
+                className="mt-2 w-full rounded-xl border border-[var(--light-highlight)] bg-[var(--card-background)]/50 px-3 py-2 text-xs text-[var(--text)] placeholder-[var(--light-highlight)]/30 focus:outline-none focus:ring-1 focus:ring-[var(--accent-color)]"
                 placeholder="Search nodes..."
                 value={searchQuery}
                 onChange={(e) => {
@@ -113,7 +113,7 @@ export default function ModelContextMenu({
 
             <div className="mt-2 max-h-64 overflow-y-auto pr-1 space-y-1">
                 {groupedEntries.length === 0 ? (
-                    <div className="p-2 text-xs text-white/40">No nodes found</div>
+                    <div className="p-2 text-xs text-[var(--text)]">No nodes found</div>
                 ) : (
                     displayGroups.map(([category, types]) => {
                         const categoryStart = runningIdx;
@@ -121,7 +121,7 @@ export default function ModelContextMenu({
                         return (
                             <div key={category || "all"}>
                                 {category && (
-                                    <div className="px-2 pt-2 pb-0.5 text-[9px] font-bold uppercase tracking-widest text-white/25">
+                                    <div className="px-2 pt-2 pb-0.5 text-[9px] font-bold uppercase tracking-widest text-[var(--text)]">
                                         {category.replace(/([A-Z])/g, " $1").trim()}
                                     </div>
                                 )}
@@ -133,15 +133,15 @@ export default function ModelContextMenu({
                                             key={type}
                                             className={`w-full rounded-xl px-3 py-2 text-left text-xs font-semibold transition duration-75 flex items-center justify-between ${
                                                 isActive
-                                                    ? "bg-[var(--accent-color)] text-white/85 font-bold"
-                                                    : "text-[var(--light-highlight)] hover:bg-white/5 hover:text-white"
+                                                    ? "bg-[var(--accent-color)] text-[var(--text)] font-bold"
+                                                    : "text-[var(--light-highlight)] hover:bg-white/5 hover:text-[var(--text)]"
                                             }`}
                                             onMouseEnter={() => setActiveIndex(globalIdx)}
                                             onClick={() => onAddNode(type)}
                                         >
                                             <span>{type}</span>
                                             {isActive && (
-                                                <span className="text-[9px] text-white/60 font-bold">↵ Enter</span>
+                                                <span className="text-[9px] text-[var(--light-highlight)] font-bold">↵ Enter</span>
                                             )}
                                         </button>
                                     );

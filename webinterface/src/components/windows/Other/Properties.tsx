@@ -175,45 +175,46 @@ export default function Properties() {
     const activeNode = selected && 'title' in selected ? (selected as GraphNode) : null;
 
     return (
-        <AnimatePresence mode={"popLayout"}>
-        <motion.div className={Styles.container} variants={panelVariants} initial="initial" animate="animate" transition={{duration:0.2}}>
-            {!context && (
-                <div className={Styles.section}>
-                    <h2>Select a Visualiser or Model Editor panel to inspect.</h2>
-                </div>
-            )}
-            <NodeInfo node={activeNode}/>
+        <div className={Styles.window}>
+            <AnimatePresence mode={"popLayout"}>
+                <motion.div className={Styles.container} variants={panelVariants} initial="initial" animate="animate" transition={{duration:0.2}}>
+                    {!context && (
+                        <div className={Styles.section}>
+                            <h2>Select a Visualiser or Model Editor panel to inspect.</h2>
+                        </div>
+                    )}
+                    <NodeInfo node={activeNode}/>
 
-            {
-                visRes && parsed!=undefined && parsed!=null && parsed.summary && (
-                    <div className={Styles.section}>
-                        <h1 className={Styles.nodeTitle} style={{backgroundColor:"var(--background)"}}>Loaded Model:</h1>
-                        <div className={"flex gap-[1rem] align-middle items-center"}>
-                            <h2>File:</h2>{parsed.summary.filename}
-                        </div>
-                        <div className={"flex gap-[1rem] align-middle items-center"}>
-                            <h2>Producer:</h2>{parsed.summary.producer}
-                        </div>
-                        <h2>Inputs:</h2>
-                        <ul>
-                            {parsed.summary.inputs.map((input:{a:string, name:string}, i:number)=>(
-                                <li key={i}>{input.name}</li>
-                            ))}
-                        </ul>
-                        <h2>Outputs:</h2>
-                        <ul>
-                            {parsed.summary.outputs.map((output:{a:string,name:string}, i:number)=>(
-                                <li key={i}>{output.name}</li>
-                            ))}
-                        </ul>
-                        <div className={"flex gap-[1rem] align-middle items-center"}>
-                        <h2>Node count:</h2> {parsed.summary.node_count}
-                        </div>
-                    </div>
-                )
-            }
-
-    </motion.div>
-        </AnimatePresence>
+                    {
+                        visRes && parsed!=undefined && parsed!=null && parsed.summary && (
+                            <div className={Styles.section}>
+                                <h1 className={Styles.nodeTitle} style={{backgroundColor:"var(--background)"}}>Loaded Model:</h1>
+                                <div className={"flex gap-[1rem] align-middle items-center"}>
+                                    <h2>File:</h2>{parsed.summary.filename}
+                                </div>
+                                <div className={"flex gap-[1rem] align-middle items-center"}>
+                                    <h2>Producer:</h2>{parsed.summary.producer}
+                                </div>
+                                <h2>Inputs:</h2>
+                                <ul>
+                                    {parsed.summary.inputs.map((input:{a:string, name:string}, i:number)=>(
+                                        <li key={i}>{input.name}</li>
+                                    ))}
+                                </ul>
+                                <h2>Outputs:</h2>
+                                <ul>
+                                    {parsed.summary.outputs.map((output:{a:string,name:string}, i:number)=>(
+                                        <li key={i}>{output.name}</li>
+                                    ))}
+                                </ul>
+                                <div className={"flex gap-[1rem] align-middle items-center"}>
+                                <h2>Node count:</h2> {parsed.summary.node_count}
+                                </div>
+                            </div>
+                        )
+                    }
+                </motion.div>
+            </AnimatePresence>
+        </div>
     )
 }

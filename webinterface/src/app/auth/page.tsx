@@ -5,6 +5,7 @@ import {login} from "@/lib/auth";
 import DummyVisualiser from "@/components/effects/DummyVisualiser";
 import {useLayoutEffect} from "react";
 import {getSession} from "next-auth/react";
+import {usePrefsStore} from "@/lib/settings/prefsStore";
 
 export default function AuthPage() {
 
@@ -14,6 +15,8 @@ export default function AuthPage() {
             window.location.href = "/home";
     }
 
+    const prefs = usePrefsStore();
+
     useLayoutEffect(() => {
         checkSession()
     }, []);
@@ -21,14 +24,14 @@ export default function AuthPage() {
     return(<main className={"authCont"}>
         <div className={"special"}>
             <div className={"fixed top-[5rem] left-[3rem] z-50 flex flex-col items-center gap-2"}>
-                <img src={"/wordmark.svg"}/>
+                <img src={prefs.theme == "dark" ? "/wordmark.svg" : "/wordmark-dark.svg"}/>
                 <h2>Visual Neural Network Studio</h2>
             </div>
             <DummyVisualiser interactive={true}></DummyVisualiser>
         </div>
 
         <div className={"form"}>
-            <img src={"/logo.svg"}/>
+            <img src={prefs.theme == "dark" ? "/logo.svg" : "/logo-dark.svg"}/>
             <button className={"github"} onClick={()=>{
                 login("github");
             }}>Login with Github <i className={"fa-brands fa-github"}></i> </button>

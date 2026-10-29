@@ -2,21 +2,28 @@ import { useState } from "react";
 import {ClientConfig, ClientType} from "@/lib/client/ClientTypes";
 import {deleteConfig, updateConfig, createConfig, renameConfig} from "@/lib/db/configs";
 import {getSession} from "next-auth/react";
+import {useRouter} from "next/navigation";
 import {toast} from "sonner";
 import Style from "./page.module.css"
 import {provisionCloudSession, teardownCloudSession} from "@/lib/cloud/sessionClient";
 import Dropdown from "@/components/structural/Dropdown";
+import { usePrefsStore } from "@/lib/settings/prefsStore";
+import { DEFAULT_LOCAL_ADDRESS, DEFAULT_LOCAL_NAME } from "@/lib/client/localAgent";
+import {router} from "next/client";
 
 export default function ConfigsPage({configs, activeConfig, clientStatus, onClientSelect, setConfigs, loadConfigs, cloudEnabled = true}:{configs:ClientConfig[], activeConfig:number|null|undefined, clientStatus:string, onClientSelect:(index:number)=>void, setConfigs: (configs:ClientConfig[]) => void, loadConfigs:()=>void, cloudEnabled?: boolean}) {
-    const [address, setAddress] = useState<string>("http://127.0.0.1:8080");
+    const localAgentAddress = usePrefsStore((s) => s.localAgentAddress);
+    const localAgentName = usePrefsStore((s) => s.localAgentName);
+    const [address, setAddress] = useState<string>(localAgentAddress || DEFAULT_LOCAL_ADDRESS);
     const [apikey, setAPIKey] = useState<string>("");
-    const [name, setName] = useState<string>("New config");
+    const [name, setName] = useState<string>(localAgentName || DEFAULT_LOCAL_NAME);
     const [type, setType] = useState<string>("local")
     const [showForm, setShowForm] = useState<boolean>(false);
     const [editing, setEditing] = useState<boolean>(false);
     const [editingIndex, setEditingIndex] = useState<number | null>(null);
     const [busy, setBusy] = useState(false);
     const [restartingId, setRestartingId] = useState<string | null>(null);
+    const router = useRouter();
 
     const isCloud = type.toLowerCase() === "cloud";
     const typeOptions =
@@ -32,6 +39,10 @@ export default function ConfigsPage({configs, activeConfig, clientStatus, onClie
         const newConfigs = configs.filter((c, i)=>i !== index);
         setConfigs(newConfigs);
         await deleteConfig(config.dbId!);
+    }
+
+    async function generateApiKey(){
+        setAPIKey(crypto.randomUUID());
     }
 
     async function restartCloud(index: number) {
@@ -153,12 +164,22 @@ export default function ConfigsPage({configs, activeConfig, clientStatus, onClie
         <div className={Style.container}>
             <div className={Style.section}>
                 <h1 className={Style.title}>Active client:</h1>
-                <div className={`${Style.mainInfo} ml-[1rem]`}>
-                    <div className={"flex flex-col items-start"}>
+                <div className={"flex items-center gap-[1.618rem]"}>
+                    <div className={`${Style.mainInfo} ml-[1rem]`}>
                         <h1>{activeConfig !== null && configs[activeConfig!] ? configs[activeConfig!].name : "No config loaded"}</h1>
-                        <h2>{activeConfig !== null && configs[activeConfig!] ? configs[activeConfig!].type.toString() : "-"}</h2>
+                        <div className={"w-full"}>
+                            <div className={"flex gap-[1rem] items-center w-full justify-between"}>
+                                <h2>Type:</h2>  {activeConfig !== null && configs[activeConfig!] ? configs[activeConfig!].type.toString() : "-"}
+                            </div>
+                            <div className={"flex gap-[1rem] items-center w-full justify-between"}>
+                                Status:<div className={Style.status} style={{borderColor:clientStatus==="Connected" ? "var(--success)" : "var(--error)"}}>{clientStatus}<div style={{backgroundColor:clientStatus==="Connected" ? "var(--success)" : "var(--error)"}} className={Style.ball}/></div>
+                            </div>
+                        </div>
                     </div>
-                    <div className={Style.status} style={{borderColor:clientStatus==="Connected" ? "var(--success)" : "var(--error)"}}>{clientStatus}<div style={{backgroundColor:clientStatus==="Connected" ? "var(--success)" : "var(--error)"}} className={Style.ball}/></div>
+                    <button className={Style.squareButton} onClick={()=>{router.push("/docs#local-agents")}}>
+                        <i className={"fa-solid fa-book"}/>
+                        How to add a local agent
+                    </button>
                 </div>
             </div>
             <div className={Style.section}>
@@ -167,9 +188,9 @@ export default function ConfigsPage({configs, activeConfig, clientStatus, onClie
                     <button className={Style.createButton} onClick={()=>{
                         setShowForm(true);
                         setEditing(false);
-                        setAddress("http://127.0.0.1:8080");
-                        setAPIKey("");
-                        setName("New config");
+                        setAddress(localAgentAddress || DEFAULT_LOCAL_ADDRESS);
+                        generateApiKey();
+                        setName(localAgentName || DEFAULT_LOCAL_NAME);
                         setType("local");
                     }}>
                         <i className={"fa-solid fa-plus-square"}/>
@@ -226,8 +247,8 @@ export default function ConfigsPage({configs, activeConfig, clientStatus, onClie
                                 {!cloudEnabled
                                     ? "Cloud features are disabled. You can rename or delete this config."
                                     : editing
-                                    ? "Cloud address and API key are managed automatically. Use the restart button on the card to spin up a fresh container."
-                                    : "Creates a Docker agent via the orchestrator. No address or API key needed."}
+                                    ? "Use the restart button on the card to spin up a fresh container."
+                                    : "Creates a Docker agent via the orchestrator."}
                             </p>
                         )}
                         {isCloud && editing && cloudEnabled && (

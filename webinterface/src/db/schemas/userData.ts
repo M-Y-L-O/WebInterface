@@ -1,4 +1,4 @@
-import {pgTable, text, timestamp, boolean, uniqueIndex} from "drizzle-orm/pg-core";
+import {pgTable, text, timestamp, boolean, uniqueIndex, integer} from "drizzle-orm/pg-core";
 import {users} from "@/db/schemas/nextAuth";
 
 export const userSettings = pgTable("usersettings", {
@@ -6,8 +6,15 @@ export const userSettings = pgTable("usersettings", {
     userId: text("userId").notNull().references(()=> users.id, { onDelete: "cascade" }),
     theme: text("theme").notNull().default("dark"),
     language: text("language").notNull().default("en"),
+    defaultModel: text("defaultModel").notNull().default("gemini-2.5-flash"),
+    optEpochs: integer("optEpochs").notNull().default(10),
+    optGenerations: integer("optGenerations").notNull().default(5),
+    localAgentAddress: text("localAgentAddress").notNull().default("http://127.0.0.1:8080"),
+    localAgentName: text("localAgentName").notNull().default("Local MYLO Client"),
     lastUsed: timestamp("lastUsed", {mode: "date"}).notNull().defaultNow(),
-})
+}, (t) => [
+    uniqueIndex("usersettings_user_uidx").on(t.userId),
+])
 
 /**
  * Bring-your-own LLM key (encrypted at rest via envelope encryption).

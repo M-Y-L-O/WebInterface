@@ -1,8 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import {useState, type ReactNode, useLayoutEffect} from "react";
 import Link from "next/link";
+import { motion } from "framer-motion";
 import "./docs.css";
+import {getSession} from "next-auth/react";
+import {usePrefsStore} from "@/lib/settings/prefsStore";
 
 const NAV = [
     { id: "overview", label: "Overview" },
@@ -14,61 +17,84 @@ const NAV = [
     { id: "workflows", label: "Workflows" },
 ] as const;
 
+const SECTION_VIEWPORT = { margin: "-35% 0px -45% 0px", amount: 0 as const };
+
+function DocsSection({
+    id,
+    onEnter,
+    children,
+}: {
+    id: string;
+    onEnter: (id: string) => void;
+    children: ReactNode;
+}) {
+    return (
+        <motion.section
+            id={id}
+            viewport={SECTION_VIEWPORT}
+            onViewportEnter={() => onEnter(id)}
+        >
+            {children}
+        </motion.section>
+    );
+}
+
 export default function DocsPage() {
     const [activeId, setActiveId] = useState<string>("overview");
+    const [loggedIn, setLoggedIn] = useState<boolean>(false);
 
-    useEffect(() => {
-        const sections = NAV.map(({ id }) => document.getElementById(id)).filter(
-            (el): el is HTMLElement => Boolean(el),
-        );
+    async function checkSession(){
+        const session = await getSession();
+        if(session)
+            setLoggedIn(true);
+    }
 
-        if (sections.length === 0) return;
+    const prefs = usePrefsStore();
 
-        const observer = new IntersectionObserver(
-            (entries) => {
-                const visible = entries
-                    .filter((e) => e.isIntersecting)
-                    .sort((a, b) => b.intersectionRatio - a.intersectionRatio);
-
-                if (visible[0]?.target.id) {
-                    setActiveId(visible[0].target.id);
-                }
-            },
-            {
-                rootMargin: "-20% 0px -55% 0px",
-                threshold: [0, 0.25, 0.5, 1],
-            },
-        );
-
-        sections.forEach((section) => observer.observe(section));
-        return () => observer.disconnect();
+    useLayoutEffect(() => {
+        checkSession()
     }, []);
 
     return (
         <div className="docs-shell">
             <header className="docs-header">
                 <a href="/" className="docs-header-brand">
-                    <img src="/wordmark.svg" alt="MYLO" />
+                    <img src={prefs.theme == "dark" ? "/wordmark.svg" : "/wordmark-dark.svg"} alt="MYLO" />
                     <span>Docs</span>
                 </a>
-                <Link href="/auth" className="docs-header-cta">
-                    Get started
+                <Link href={loggedIn ? "/home" : "/auth"} className="docs-header-cta">
+                    {loggedIn ? "Home" : "Get started"}
                 </Link>
             </header>
 
             <div className="docs-layout">
                 <aside className="docs-sidebar">
-                    <p className="docs-sidebar-label">On this page</p>
                     <div className="docs-nav" aria-label="Documentation sections">
-                        {NAV.map(({ id, label }) => (
-                            <a
-                                key={id}
-                                href={`#${id}`}
-                                className={activeId === id ? "active" : undefined}
-                            >
-                                {label}
-                            </a>
-                        ))}
+                        {NAV.map(({ id, label }) => {
+                            const isActive = activeId === id;
+                            return (
+                                <a
+                                    key={id}
+                                    href={`#${id}`}
+                                    className={isActive ? "active" : undefined}
+                                    aria-current={isActive ? "location" : undefined}
+                                    onClick={() => setActiveId(id)}
+                                >
+                                    {isActive && (
+                                        <motion.span
+                                            layoutId="docsNavPill"
+                                            className="docs-nav-pill"
+                                            transition={{
+                                                type: "spring",
+                                                stiffness: 380,
+                                                damping: 32,
+                                            }}
+                                        />
+                                    )}
+                                    <span className="docs-nav-label">{label}</span>
+                                </a>
+                            );
+                        })}
                     </div>
                 </aside>
 
@@ -79,7 +105,7 @@ export default function DocsPage() {
                     {/*    from the browser — connect, open a project, edit models, and optimize.*/}
                     {/*</p>*/}
 
-                    <section id="overview">
+                    <DocsSection id="overview" onEnter={setActiveId}>
                         <h2>Overview</h2>
                         <p>
                             MYLO is a browser control plane for designing, editing, analyzing,
@@ -122,9 +148,9 @@ export default function DocsPage() {
                             You must be <strong>Connected</strong> to an agent before you can open
                             or create projects. How to connect to an agent is described below.
                         </p>
-                    </section>
+                    </DocsSection>
 
-                    <section id="getting-started">
+                    <DocsSection id="getting-started" onEnter={setActiveId}>
                         <h2>Getting started</h2>
                         <ol>
                             <li>
@@ -166,9 +192,9 @@ export default function DocsPage() {
                             The connection indicator shows <em>Connected</em>, <em>Connecting</em>,
                             or <em>Offline</em>. Connect a client before opening a project.
                         </p>
-                    </section>
+                    </DocsSection>
 
-                    <section id="local-agents">
+                    <DocsSection id="local-agents" onEnter={setActiveId}>
                         <h2>Local agents</h2>
                         <p>
                             A local agent lets you keep models and compute on a machine in your own network.
@@ -247,9 +273,9 @@ SERVER_PORT="8080"`}</code>
                             else is bound to that port. Restart the agent if a previous session was
                             left half-initialized.
                         </div>
-                    </section>
+                    </DocsSection>
 
-                    <section id="cloud-agents">
+                    <DocsSection id="cloud-agents" onEnter={setActiveId}>
                         <h2>Cloud agents (Currently Disabled)</h2>
                         <div className={"docs-note"}>
                             <strong>Note:</strong> Cloud agents are currently disabled. This is because hosting them is costly and not yet ready for production use.
@@ -277,11 +303,9 @@ SERVER_PORT="8080"`}</code>
                         <p>
                             Deleting a CLOUD config also tears down its container.
                         </p>
-                    </section>
+                    </DocsSection>
 
-
-
-                    <section id="projects">
+                    <DocsSection id="projects" onEnter={setActiveId}>
                         <h2>Projects &amp; Catalog</h2>
 
                         <h3>Projects</h3>
@@ -311,9 +335,9 @@ SERVER_PORT="8080"`}</code>
                             <strong>Open</strong> downloads the asset into your connected agent and
                             opens the Dashboard (editor or visualiser, depending on type).
                         </p>
-                    </section>
+                    </DocsSection>
 
-                    <section id="dashboard">
+                    <DocsSection id="dashboard" onEnter={setActiveId}>
                         <h2>Dashboard</h2>
                         <p>
                             The Dashboard is the main IDE: a menu bar on top and dockable panels you
@@ -391,9 +415,9 @@ SERVER_PORT="8080"`}</code>
                             Model Editor, Optimization, Diagnostics, and Visualiser also open from
                             Project Manager actions.
                         </p>
-                    </section>
+                    </DocsSection>
 
-                    <section id="workflows">
+                    <DocsSection id="workflows" onEnter={setActiveId}>
                         <h2>Workflows</h2>
 
                         <h3>CSV and data analysis</h3>
@@ -486,8 +510,7 @@ SERVER_PORT="8080"`}</code>
                                 </tbody>
                             </table>
                         </div>
-                    </section>
-
+                    </DocsSection>
 
                         <p>
                             Ready to try it?{" "}

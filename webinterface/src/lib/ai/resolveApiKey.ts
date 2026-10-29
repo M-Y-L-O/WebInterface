@@ -30,7 +30,7 @@ export async function resolveGeminiApiKey(userId: string): Promise<
                     ok: false,
                     code: "INVALID_KEY",
                     error:
-                        "Your Gemini API key was marked invalid. Open Settings to rotate it.",
+                        "Your Gemini API key was marked invalid. Go to Settings to rotate it.",
                 };
             }
             return { ok: true, resolved: { apiKey: userKey.apiKey, source: "user" } };
@@ -40,7 +40,7 @@ export async function resolveGeminiApiKey(userId: string): Promise<
             ok: false,
             code: "DECRYPT_FAILED",
             error:
-                "Could not decrypt your stored API key. Check BYOK_MASTER_KEY / KMS configuration.",
+                "Could not decrypt your stored API key. Please re-enter it in Settings.",
         };
     }
 
@@ -53,7 +53,7 @@ export async function resolveGeminiApiKey(userId: string): Promise<
         ok: false,
         code: "NO_KEY",
         error:
-            "No Gemini API key configured. Add your own key in Settings (BYOK), or set GEMINI_API_KEY on the server.",
+            "No Gemini API key configured. Add your own key in Settings",
     };
 }
 

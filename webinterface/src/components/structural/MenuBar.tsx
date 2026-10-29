@@ -6,6 +6,7 @@ import {LoadModel, LoadCSV, SaveProject, SaveProjectToCloud, OpenProject} from "
 import Style from "./MenuBar.module.css"
 import {AnimatePresence, motion} from "framer-motion";
 import {addWindow} from "@/lib/windows/windowActions";
+import {usePrefsStore} from "@/lib/settings/prefsStore";
 
 
 interface ActionButton{
@@ -17,7 +18,7 @@ interface ActionButton{
 
 export default function MenuBar({cloudEnabled = true}:{cloudEnabled?: boolean}){
     const client = useClientStore(state => state.client);
-
+    const prefs = usePrefsStore();
     const router = useRouter();
 
     const [hoveredIndex, setHoveredIndex] = React.useState<number | null>(null);
@@ -93,7 +94,7 @@ export default function MenuBar({cloudEnabled = true}:{cloudEnabled?: boolean}){
     return (
         <nav className={Style.container}>
             <div className={Style.homeButton} >
-                <img src={"/logo.svg"} onClick={()=>{router.push("/home")}}/>
+                <img src={prefs.theme == "dark" ? "/logo.svg" : "/logo-dark.svg"} onClick={()=>{router.push("/home")}}/>
             </div>
                 <motion.div className={Style.menuHolder} initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}} transition={{duration:0.2}} onMouseEnter={()=>{setHoveredIndex(null)}}>
                 {

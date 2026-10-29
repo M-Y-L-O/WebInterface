@@ -3,17 +3,11 @@ import {DockviewReact,  DockviewReadyEvent, DockviewTheme} from "dockview-react"
 import {getProjectId, useWorkspaceStore} from "@/lib/store";
 import {components} from "@/lib/windows/windowTypes";
 import {consumePendingPanel} from "@/lib/windows/pendingPanel";
-import {useCallback, useEffect, useRef} from "react";
+import {useCallback, useEffect, useMemo, useRef} from "react";
 import "dockview-react/dist/styles/dockview.css"
 import Styles from "./WindowTheme.module.css"
 import type { DockLayoutJson } from "@/lib/store/types";
-
-const Theme:DockviewTheme = {
-    name:"MYLO",
-    className:Styles.MYLOTheme,
-    colorScheme:"dark",
-    tabAnimation:"smooth",
-}
+import { usePrefsStore } from "@/lib/settings/prefsStore";
 
 function applyDefaultLayout(api: DockviewReadyEvent["api"]) {
     api.addPanel({id: 'FileExplorer', component: 'FileExplorer', title: 'Project Explorer'})
@@ -63,7 +57,18 @@ function applyPendingPanel(api: DockviewReadyEvent["api"]) {
 export default function WindowManager(){
     const setApi = useWorkspaceStore(state => state.setApi);
     const setLayout = useWorkspaceStore(state => state.setLayout);
+    const colorScheme = usePrefsStore((s) => s.resolvedTheme());
     const layoutDisposableRef = useRef<{ dispose: () => void } | null>(null);
+
+    const theme = useMemo<DockviewTheme>(
+        () => ({
+            name: "MYLO",
+            className: Styles.MYLOTheme,
+            colorScheme,
+            tabAnimation: "smooth",
+        }),
+        [colorScheme],
+    );
 
     useEffect(() => {
         return () => {
@@ -96,7 +101,7 @@ export default function WindowManager(){
         <DockviewReact
         components={components}
         onReady={onReady}
-        theme={Theme}
+        theme={theme}
         hideBorders={false}
       />)
 }

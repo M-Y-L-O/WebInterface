@@ -4,6 +4,7 @@ import { Node, Edge } from "@xyflow/react";
 import {ReactFlow, Background, Position} from "@xyflow/react";
 import {colorNode, layoutElements} from "@/lib/windows/visualiserHelpers";
 import '@xyflow/react/dist/style.css';
+import {usePrefsStore} from "@/lib/settings/prefsStore";
 
 const nodeDefaults = {
     sourcePosition: Position.Right,
@@ -77,6 +78,7 @@ const colorfulNodes = designNodes.map(node => colorNode({ ...node }));
 export const positionedNodes = await layoutElements(colorfulNodes, designEdges, false);
 
 export default function DummyVisualiser({interactive=false}:{interactive?:boolean}) {
+    const prefs = usePrefsStore();
     return <div className={"w-full h-full"}>
         <ReactFlow
             nodes={positionedNodes}
@@ -93,7 +95,7 @@ export default function DummyVisualiser({interactive=false}:{interactive?:boolea
             nodesDraggable={interactive}
             nodesConnectable={interactive}
             elementsSelectable={interactive}
-            colorMode={"dark"}
+            colorMode={prefs.theme === "dark" ? "dark" : "light"}
         >
             <Background  gap={32} size={1}/>
         </ReactFlow>

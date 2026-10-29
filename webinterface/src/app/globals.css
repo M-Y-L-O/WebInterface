@@ -1,9 +1,5 @@
 @import "tailwindcss";
 
-:root {
-
-}
-
 @theme {
   --primary:#FD851D;
   --primary-hover: #c36619;
@@ -13,6 +9,19 @@
   --card-background: #171717;
   --light-highlight:#757575;
 
+  --error: #da3939;
+  --success: #2faf5e;
+  --warning: #f59e0b;
+}
+
+html[data-theme="light"] {
+  --primary: #e07010;
+  --primary-hover: #c36619;
+  --background: #ece8e3;
+  --text: #1c1c1c;
+  --text-light: #6b7280;
+  --card-background: #f7f4f0;
+  --light-highlight: #8a857c;
   --error: #da3939;
   --success: #2faf5e;
   --warning: #f59e0b;

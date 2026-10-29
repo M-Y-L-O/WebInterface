@@ -189,13 +189,28 @@
     border-radius: 0;
 }
 
+.slotSecondaryActions .menuButton i{
+    font-size: 1.5rem;
+}
+
 .middle{
     border-left: 2px solid var(--light-highlight);
     border-right: 2px solid var(--light-highlight);
 }
 
+.menuButton{
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    background-color: var(--card-background);
+    color: var(--text);
+    transition: 0.2s ease-in-out;
+    cursor: pointer;
+}
+
 .menuButton i{
-    font-size: 1.5rem;
+    font-size: 1rem;
 }
 
 .menuButton:hover{

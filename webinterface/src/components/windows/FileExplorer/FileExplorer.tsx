@@ -11,7 +11,7 @@ import {EditorTemplate, SlotDescriptor} from "./types";
 import {defaultSlots, mergeSlots} from "./helpers";
 import SlotCard from "./SlotCard";
 import TemplatePicker from "./TemplatePicker";
-import {addWindow} from "@/lib/windows/windowActions";
+import {addWindow, closeWindowsForReplacedSlot} from "@/lib/windows/windowActions";
 
 function normalizeTemplates(payload: any): EditorTemplate[] {
     const raw = payload?.templates ?? payload;
@@ -86,13 +86,18 @@ export default function FileExplorer(_props: IDockviewPanelProps) {
         return key ? visualisations[key] : null;
     }
 
+    function dockApi() {
+        return useDockviewStore.getState().api ?? api;
+    }
+
     function openVisualiser(slot: SlotDescriptor, visualization: any) {
-        if (!api) {
+        const dock = dockApi();
+        if (!dock) {
             return;
         }
 
         const panelId = `Visualiser-${slot.key}`;
-        const existing = api.getPanel(panelId);
+        const existing = dock.getPanel(panelId);
         if (existing) {
             existing.api.updateParameters({
                 filePath: slot.path,
@@ -104,7 +109,7 @@ export default function FileExplorer(_props: IDockviewPanelProps) {
             return;
         }
 
-        api.addPanel({
+        dock.addPanel({
             id: panelId,
             component: "Visualiser",
             title: "Visualise - " + slot.name,
@@ -126,12 +131,13 @@ export default function FileExplorer(_props: IDockviewPanelProps) {
     }
 
     function openModelEditor(slot: SlotDescriptor, descriptor?: any) {
-        if (!api) {
+        const dock = dockApi();
+        if (!dock) {
             return;
         }
 
         const panelId = `ModelEditor-${slot.key}`;
-        const existing = api.getPanel(panelId);
+        const existing = dock.getPanel(panelId);
         if (existing) {
             if (descriptor) {
                 existing.api.updateParameters({
@@ -144,7 +150,7 @@ export default function FileExplorer(_props: IDockviewPanelProps) {
             return;
         }
 
-        api.addPanel({
+        dock.addPanel({
             id: panelId,
             component: "ModelEditor",
             title: `Edit - ${slot.name}`,
@@ -157,18 +163,19 @@ export default function FileExplorer(_props: IDockviewPanelProps) {
     }
 
     function openOptimization(slot: SlotDescriptor) {
-        if (!api) {
+        const dock = dockApi();
+        if (!dock) {
             return;
         }
 
         const panelId = `Optimization-${slot.key}`;
-        const existing = api.getPanel(panelId);
+        const existing = dock.getPanel(panelId);
         if (existing) {
             existing.api.setActive();
             return;
         }
 
-        api.addPanel({
+        dock.addPanel({
             id: panelId,
             component: "Optimization",
             title: `Optimize - ${slot.name}`,
@@ -179,18 +186,19 @@ export default function FileExplorer(_props: IDockviewPanelProps) {
     }
 
     function openDiagnostics(slot: SlotDescriptor) {
-        if (!api) {
+        const dock = dockApi();
+        if (!dock) {
             return;
         }
 
         const panelId = `Diagnostics-${slot.key}`;
-        const existing = api.getPanel(panelId);
+        const existing = dock.getPanel(panelId);
         if (existing) {
             existing.api.setActive();
             return;
         }
 
-        api.addPanel({
+        dock.addPanel({
             id: panelId,
             component: "Diagnostics",
             title: `Diagnose - ${slot.name}`,
@@ -219,6 +227,12 @@ export default function FileExplorer(_props: IDockviewPanelProps) {
 
             // Clear stale graph for this slot — file changed.
             useProjectStore.getState().clearVisualisation(slot.key);
+            if (slot.key === "uploaded_pt2") {
+                useProjectStore.getState().clearVisualisation("optimized_pt2");
+                useProjectStore.getState().clearVisualisation("optimized_onnx");
+            }
+            // Drop open editors/viz/optimize/diagnose windows for the old file.
+            closeWindowsForReplacedSlot(useDockviewStore.getState().api, slot.key);
             await refreshSlots();
             toast.success(`${slot.name} uploaded`, {id: toastId, duration: 4000});
         } catch (error) {
@@ -271,7 +285,8 @@ export default function FileExplorer(_props: IDockviewPanelProps) {
             }
 
             openVisualiser(slot, res);
-            toast.success(`Opened ${slot.name}`, {id: toastId, duration: 4000});
+            toast.dismiss(toastId);
+            // toast.success(`Opened ${slot.name}`, {id: toastId, duration: 4000});
         } catch (error) {
             // @ts-ignore
             toast.error("Failed to visualise file", {id: toastId, description: error?.message || "Unknown error"});
@@ -290,7 +305,7 @@ export default function FileExplorer(_props: IDockviewPanelProps) {
             if (result instanceof Error || result !== 200) {
                 throw new Error("Download failed");
             }
-            toast.success(`${slot.name} downloaded`, {id: toastId, duration: 4000});
+            toast.info(`${slot.name} download started`, {id: toastId, duration: 4000});
         } catch (error) {
             // @ts-ignore
             toast.error("Failed to download file", {id: toastId, description: error?.message || "Unknown error"});
@@ -314,6 +329,8 @@ export default function FileExplorer(_props: IDockviewPanelProps) {
         if (!client) {
             return;
         }
+
+        console.log("openNewPt2Picker", slot);
 
         setTemplatePickerSlot(slot);
         setTemplatesLoading(true);
@@ -357,6 +374,12 @@ export default function FileExplorer(_props: IDockviewPanelProps) {
             }
 
             useProjectStore.getState().clearVisualisation(slot.key);
+            if (slot.key === "uploaded_pt2") {
+                useProjectStore.getState().clearVisualisation("optimized_pt2");
+                useProjectStore.getState().clearVisualisation("optimized_onnx");
+            }
+            // Same as Replace/Upload: old PT2 windows must not linger.
+            closeWindowsForReplacedSlot(useDockviewStore.getState().api, slot.key);
             await refreshSlots();
 
             // Prefer the agent-canonical descriptor after load
@@ -386,7 +409,8 @@ export default function FileExplorer(_props: IDockviewPanelProps) {
                 throw new Error((res as any)?.error || "Failed to load descriptor");
             }
             openModelEditor(slot, (res as any).descriptor);
-            toast.success("Editor opened", {id: toastId, duration: 2500});
+            toast.dismiss(toastId);
+            //toast.success("Editor opened", {id: toastId, duration: 2500});
         } catch (error) {
             // @ts-ignore
             toast.error("Failed to open editor", {id: toastId, description: error?.message || "Unknown error"});

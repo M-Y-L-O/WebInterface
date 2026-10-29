@@ -65,6 +65,30 @@ export class Client {
         }
     }
 
+    public async Disconnect(): Promise<any> {
+        if (this.config.type === ClientType.CLOUD) {
+            return { message: "Cloud sessions are managed by the orchestrator" };
+        }
+        try {
+            return await Request(EndPoints.disconnect, this.config, {});
+        } catch (e) {
+            return e;
+        }
+    }
+
+    /** True when Authorization is accepted by the agent. */
+    public async VerifyAuth(): Promise<boolean> {
+        if (this.config.type === ClientType.CLOUD) return true;
+        try {
+            const res = await GetRequest(EndPoints.optimizationReport, this.config);
+            if (res instanceof Error) return false;
+            // 404 = no report yet, but auth passed; 401 = wrong key.
+            return res.status !== 401;
+        } catch {
+            return false;
+        }
+    }
+
     public async OptimizationRequest(OptimizationReq: OptimizationRequest, modelFilepath?: string){
         try{
            return await Request(EndPoints.optimize, this.config, {
@@ -330,6 +354,15 @@ export class Client {
                     resolve(file);
                 }
             }
+            input.oncancel = () => {
+                return reject("File selection cancelled");
+            }
+            input.onabort = () => {
+                return reject("File selection aborted");
+            }
+            input.onerror = () =>{
+                return reject("File selection failed");
+            }
             input.click();
         })
     }
@@ -356,10 +389,13 @@ export class Client {
         }
     }
 
-    public async validateModelDescriptor(descriptor:any){
+    public async validateModelDescriptor(descriptor:any, opts?: { strict?: boolean }){
         if(this.config.type === ClientType.LOCAL || this.config.type === ClientType.CLOUD){
             try{
-                return await Request(EndPoints.validateModelDescriptor, this.config, {descriptor});
+                return await Request(EndPoints.validateModelDescriptor, this.config, {
+                    descriptor,
+                    strict: Boolean(opts?.strict),
+                });
             } catch (e) {
                 return new Error("Request failed:", {cause: e})
             }
