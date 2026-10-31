@@ -96,8 +96,8 @@ export default function ModelEditorInner(props: IDockviewPanelProps) {
     const [descriptorWarnings, setDescriptorWarnings] = useState<string[]>([]);
 
     // ReactFlow state
-    const [nodes, setNodes, onNodesChange] = useNodesState([]);
-    const [edges, setEdges, onEdgesChange] = useEdgesState([]);
+    const [nodes, setNodes, onNodesChange] = useNodesState<Node>([]);
+    const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
 
     // Selection
     const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
@@ -236,7 +236,7 @@ export default function ModelEditorInner(props: IDockviewPanelProps) {
     // ---------------------------------------------------------------------------
     // Graph rendering
     // ---------------------------------------------------------------------------
-    async function renderGraph(graph: any, opts?: { relayout?: boolean }, ctlg? : Catalog) {
+    async function renderGraph(graph: any, opts?: { relayout?: boolean }, ctlg? : Catalog|null|undefined) {
         lastGraphRef.current = graph;
         const { nodes: rfNodes, edges: rfEdges } = buildReactFlow(graph, ctlg ? ctlg: catalog);
 
