@@ -68,32 +68,44 @@ export const MYLO_FUNCTION_DECLARATIONS: FunctionDeclaration[] = [
     {
         name: "edit_model",
         description:
-            "Apply a model-editor operation via the MYLO agent. Operations: add_node, remove_node, update_node, add_edge, remove_edge, set_params, replace_subgraph (if supported). Always call get_model_descriptor and get_editor_catalog first when unsure of ids/types.",
+            "Apply a model-editor operation via the MYLO agent. Operations: add_node, remove_node, update_node, add_edge, remove_edge, set_params. For insert-between, pass `operations` as one batch: add_node → remove_edge → add_edge → add_edge. ALWAYS use nodeId (never id). Call get_model_descriptor + get_editor_catalog first. After success: validate_model then save_model.",
         parameters: {
             type: Type.OBJECT,
             properties: {
                 operation: {
                     type: Type.STRING,
                     description:
-                        "Editor operation name, e.g. add_node, remove_node, update_node, add_edge, remove_edge.",
+                        "add_node | remove_node | update_node | add_edge | remove_edge | set_params. Required unless `operations` is provided.",
                 },
                 payload: {
                     type: Type.OBJECT,
                     description:
-                        "Operation payload. Examples: {nodeId, type, params, connectFrom?} for add_node; {nodeId} for remove_node; {nodeId, type, params} for update_node; {source, target, sourcePort?, targetPort?} for add_edge.",
+                        "REQUIRED keys by op — add_node:{nodeId,type,params}; remove_node:{nodeId}; update_node:{nodeId,type,params}; add_edge/remove_edge:{source,target}. Example add_node: {\"nodeId\":\"dropout1\",\"type\":\"Dropout\",\"params\":{\"p\":0.5}}.",
+                },
+                operations: {
+                    type: Type.ARRAY,
+                    description:
+                        "Batch of {operation, payload} applied in order. Prefer for rewires. If DUPLICATE_NODE_ID, choose a new nodeId and retry — do not re-add an existing node.",
+                    items: {
+                        type: Type.OBJECT,
+                        properties: {
+                            operation: { type: Type.STRING },
+                            payload: { type: Type.OBJECT },
+                        },
+                        required: ["operation"],
+                    },
                 },
                 persist: {
                     type: Type.BOOLEAN,
-                    description: "If true, persist the edit on the agent (default false — preview-style edit that still updates the live descriptor).",
+                    description: "If true, persist the edit on the agent (default false).",
                 },
             },
-            required: ["operation"],
         },
     },
     {
         name: "preview_edit",
         description:
-            "Dry-run a model edit without committing history the same way as a full edit. Useful to validate an update_node params change.",
+            "Dry-run a model edit and return a human-readable diff summary without committing like a full edit.",
         parameters: {
             type: Type.OBJECT,
             properties: {
@@ -170,6 +182,90 @@ export const MYLO_FUNCTION_DECLARATIONS: FunctionDeclaration[] = [
     {
         name: "refresh_project",
         description: "Reload project metadata from the connected MYLO agent into the UI store.",
+        parameters: {
+            type: Type.OBJECT,
+            properties: {},
+        },
+    },
+    {
+        name: "start_optimization",
+        description:
+            "Start an optimization run on the connected MYLO agent. Requires inputFeatures and targetFeature. Uses settings defaults for epochs/generations when omitted. Returns immediately after kickoff; poll get_optimization_status for progress.",
+        parameters: {
+            type: Type.OBJECT,
+            properties: {
+                inputFeatures: {
+                    type: Type.ARRAY,
+                    items: { type: Type.STRING },
+                    description: "Feature column names.",
+                },
+                targetFeature: {
+                    type: Type.STRING,
+                    description: "Target column name.",
+                },
+                problemType: {
+                    type: Type.STRING,
+                    description: "regression | classification (default regression).",
+                },
+                epochs: { type: Type.NUMBER },
+                generations: { type: Type.NUMBER },
+                strategy: {
+                    type: Type.STRING,
+                    description: "neat | genetic | brute-force | neuroevolution",
+                },
+                encoding: {
+                    type: Type.STRING,
+                    description: "none | label | onehot",
+                },
+                modelFilepath: {
+                    type: Type.STRING,
+                    description: "Optional model filepath override.",
+                },
+            },
+            required: ["inputFeatures", "targetFeature"],
+        },
+    },
+    {
+        name: "stop_optimization",
+        description:
+            "Attempt to stop the in-progress optimization run. Returns an error if the local agent does not support cancel.",
+        parameters: {
+            type: Type.OBJECT,
+            properties: {},
+        },
+    },
+    {
+        name: "get_column_stats",
+        description:
+            "Compute per-column stats for the loaded CSV (inferred type, nulls, min/max, samples).",
+        parameters: {
+            type: Type.OBJECT,
+            properties: {
+                columns: {
+                    type: Type.ARRAY,
+                    items: { type: Type.STRING },
+                    description: "Optional column name filter.",
+                },
+                maxColumns: {
+                    type: Type.NUMBER,
+                    description: "Max columns to include (default 40).",
+                },
+            },
+        },
+    },
+    {
+        name: "suggest_features_targets",
+        description:
+            "Heuristically suggest feature columns and a target column from the loaded CSV.",
+        parameters: {
+            type: Type.OBJECT,
+            properties: {},
+        },
+    },
+    {
+        name: "get_visualiser_selection",
+        description:
+            "Return the current Visualiser / panel selection from the workspace store, if any.",
         parameters: {
             type: Type.OBJECT,
             properties: {},

@@ -31,8 +31,17 @@ export type AiChatResponse = {
     text?: string;
     functionCalls?: AiFunctionCall[];
     modelContent?: AiContent;
-    error?: string;
+    finishReason?: string;
 };
+
+/** Server-sent events from POST /api/ai/chat */
+export type AiStreamEvent =
+    | { type: "text_delta"; text: string }
+    | { type: "function_calls"; functionCalls: AiFunctionCall[] }
+    | { type: "model_content"; modelContent: AiContent }
+    | { type: "finish"; finishReason?: string; text?: string }
+    | { type: "error"; error: string; code?: string }
+    | { type: "done" };
 
 export type ChatMessage = {
     id: string;
@@ -40,4 +49,6 @@ export type ChatMessage = {
     content: string;
     toolName?: string;
     pending?: boolean;
+    /** Limit hit / cancelled markers for UI actions */
+    kind?: "limit" | "cancelled";
 };

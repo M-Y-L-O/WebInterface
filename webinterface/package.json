@@ -9,7 +9,8 @@
     "lint": "eslint",
     "mig": "drizzle-kit migrate",
     "push": "drizzle-kit push",
-    "gen": "drizzle-kit generate"
+    "gen": "drizzle-kit generate",
+    "test": "tsx --test src/lib/ai/**/*.test.ts"
   },
   "dependencies": {
     "@auth/core": "^0.34.3",
@@ -49,6 +50,7 @@
     "eslint": "^9.39.4",
     "eslint-config-next": "16.2.6",
     "tailwindcss": "^4.3.1",
+    "tsx": "^4.23.15",
     "typescript": "^5.9.3"
   }
 }

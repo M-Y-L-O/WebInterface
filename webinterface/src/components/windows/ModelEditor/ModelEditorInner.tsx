@@ -29,6 +29,8 @@ import { Catalog, ParamField, ParamFieldType, ViewMode } from "./types";
 import {
     blueprintToFields,
     buildReactFlow,
+    countIoRoles,
+    ioRoleOf,
     catalogDefaultParams,
     connectionGuard,
     defaultEmptyDescriptor,
@@ -110,6 +112,8 @@ export default function ModelEditorInner(props: IDockviewPanelProps) {
     const [nodeTypeDraft, setNodeTypeDraft] = useState<string>("Linear");
     const [nodeIdDraft, setNodeIdDraft] = useState<string>("");
     const [nodeParamFields, setNodeParamFields] = useState<ParamField[]>([]);
+    // Prevent live preview / normalize responses from overwriting in-progress edits
+    const paramsDraftDirtyRef = useRef(false);
     const [quickAddType, setQuickAddType] = useState<string>("Linear");
 
     // Undo/redo availability — driven by agent history flags, not optimistic defaults
@@ -232,9 +236,9 @@ export default function ModelEditorInner(props: IDockviewPanelProps) {
     // ---------------------------------------------------------------------------
     // Graph rendering
     // ---------------------------------------------------------------------------
-    async function renderGraph(graph: any, opts?: { relayout?: boolean }) {
+    async function renderGraph(graph: any, opts?: { relayout?: boolean }, ctlg? : Catalog) {
         lastGraphRef.current = graph;
-        const { nodes: rfNodes, edges: rfEdges } = buildReactFlow(graph, catalog);
+        const { nodes: rfNodes, edges: rfEdges } = buildReactFlow(graph, ctlg ? ctlg: catalog);
 
         const prevById = new Map(nodesRef.current.map((n) => [String(n.id), n]));
         const pending = pendingPositionsRef.current;
@@ -323,9 +327,9 @@ export default function ModelEditorInner(props: IDockviewPanelProps) {
                 client.getEditorCatalog(),
                 client.getModelDescriptor(),
             ]);
-
+            let cat = null;
             if (catRes && !(catRes instanceof Error)) {
-                const cat = catRes as Catalog;
+                cat = catRes as Catalog;
                 setCatalog(cat);
                 // Seed the quick-add type from the first insertable type
                 const firstType =
@@ -353,7 +357,7 @@ export default function ModelEditorInner(props: IDockviewPanelProps) {
                 );
             }
             syncDescriptorWarnings(graphRes);
-            await renderGraph(graphRes, { relayout: true });
+            await renderGraph(graphRes, { relayout: true }, cat);
             // Fresh open — don't inherit optimistic undo affordances from a prior session
             setCanUndo(Boolean((descRes as any)?.canUndo));
             setCanRedo(Boolean((descRes as any)?.canRedo));
@@ -535,6 +539,8 @@ export default function ModelEditorInner(props: IDockviewPanelProps) {
                 return;
             }
 
+            // Accept server-normalized params after a persisted edit
+            paramsDraftDirtyRef.current = false;
             if ((res as any)?.descriptor) setDescriptorState((res as any).descriptor);
             if ((res as any)?.graph) await renderGraph((res as any).graph);
             syncDescriptorWarnings(res);
@@ -615,6 +621,7 @@ export default function ModelEditorInner(props: IDockviewPanelProps) {
                 handleApiError(code, message, toastId, res);
                 return;
             }
+            paramsDraftDirtyRef.current = false;
             if ((res as any)?.descriptor) setDescriptorState((res as any).descriptor);
             if ((res as any)?.graph) await renderGraph((res as any).graph);
             syncDescriptorWarnings(res);
@@ -643,6 +650,7 @@ export default function ModelEditorInner(props: IDockviewPanelProps) {
                 handleApiError(code, message, toastId, res);
                 return;
             }
+            paramsDraftDirtyRef.current = false;
             if ((res as any)?.descriptor) setDescriptorState((res as any).descriptor);
             if ((res as any)?.graph) await renderGraph((res as any).graph);
             syncDescriptorWarnings(res);
@@ -996,17 +1004,32 @@ export default function ModelEditorInner(props: IDockviewPanelProps) {
     }
 
     // ---------------------------------------------------------------------------
-    // Sync param fields when selected node changes
+    // Sync param fields when selected node changes (or descriptor loads).
+    // Skip field rehydration while the user has unsaved draft edits — otherwise
+    // live preview normalize (e.g. in_features=-1 from dynamic shapes) snaps the
+    // inputs back mid-keystroke.
     // ---------------------------------------------------------------------------
+    const prevSelectedNodeIdRef = useRef<string | null>(null);
     useEffect(() => {
         if (!selectedNodeId || !descriptor) return;
         const node = (descriptor.nodes || []).find(
             (n: any) => String(n.id) === String(selectedNodeId)
         );
         if (!node) return;
+
+        const selectionChanged = prevSelectedNodeIdRef.current !== selectedNodeId;
+        prevSelectedNodeIdRef.current = selectedNodeId;
+        if (selectionChanged) {
+            paramsDraftDirtyRef.current = false;
+        }
+
         setNodeIdDraft(String(node.id));
         const type = String(node.type || "Linear");
         setNodeTypeDraft(type);
+
+        if (paramsDraftDirtyRef.current && !selectionChanged) {
+            return;
+        }
 
         // Prefer blueprint-driven fields, fall back to raw params
         const bp = catalog?.nodeParameterBlueprints?.[type];
@@ -1220,15 +1243,35 @@ export default function ModelEditorInner(props: IDockviewPanelProps) {
             setSelected(null);
         }
 
+        // IO terminals stay until the last of each role — count against the
+        // live canvas, then decrement as we accept deletes in this batch.
+        const roleCounts = countIoRoles(
+            nodesRef.current.map((n) => ({
+                id: n.id,
+                type: (n.data as any)?.nodeType,
+                label: (n.data as any)?.label,
+                data: n.data as any,
+            })),
+        );
+
         const removedNodeIds = new Set<string>();
         for (const node of deletedNodes) {
             const id = String(node.id);
-            if (id === "input" || id === "output") {
-                blockAction("remove_node", "input/output nodes are protected and cannot be deleted", {
-                    nodeId: id,
-                });
+            const role = ioRoleOf({
+                id,
+                type: (node.data as any)?.nodeType,
+                label: (node.data as any)?.label,
+                data: node.data as any,
+            });
+            if (role && roleCounts[role] <= 1) {
+                blockAction(
+                    "remove_node",
+                    `Cannot remove the only ${role} node`,
+                    { nodeId: id },
+                );
                 continue;
             }
+            if (role) roleCounts[role] -= 1;
             removedNodeIds.add(id);
             // remove_node also strips incident edges on the agent
             await applyEdit("remove_node", { nodeId: id }, false);
@@ -1256,6 +1299,7 @@ export default function ModelEditorInner(props: IDockviewPanelProps) {
     // Manual param field management (fallback)
     // ---------------------------------------------------------------------------
     function addParamField() {
+        paramsDraftDirtyRef.current = true;
         setNodeParamFields((prev) => [
             ...prev,
             { id: `${Date.now()}-${Math.random()}`, key: "", type: "string", value: "" },
@@ -1263,18 +1307,21 @@ export default function ModelEditorInner(props: IDockviewPanelProps) {
     }
 
     function updateParamField(id: string, patch: Partial<ParamField>) {
+        paramsDraftDirtyRef.current = true;
         setNodeParamFields((prev) =>
             prev.map((f) => (f.id === id ? { ...f, ...patch } : f))
         );
     }
 
     function removeParamField(id: string) {
+        paramsDraftDirtyRef.current = true;
         setNodeParamFields((prev) => prev.filter((f) => f.id !== id));
     }
 
     function applyTemplate(overwrite = true) {
         const bp = catalog?.nodeParameterBlueprints?.[nodeTypeDraft];
         if (bp) {
+            paramsDraftDirtyRef.current = true;
             setNodeParamFields(blueprintToFields(bp));
             return;
         }
@@ -1293,6 +1340,7 @@ export default function ModelEditorInner(props: IDockviewPanelProps) {
             });
             return;
         }
+        paramsDraftDirtyRef.current = true;
         setNodeParamFields(template);
     }
 
@@ -1486,6 +1534,10 @@ export default function ModelEditorInner(props: IDockviewPanelProps) {
                     }}
                     onDeleteNode={() =>
                         applyEdit("remove_node", { nodeId: selectedNodeId! }, false)
+                    }
+                    canDeleteNode={
+                        nodes.find((n) => String(n.id) === String(selectedNodeId))
+                            ?.deletable !== false
                     }
                     onExpandNode={expandSelected}
                     onCollapseNode={collapseSelected}

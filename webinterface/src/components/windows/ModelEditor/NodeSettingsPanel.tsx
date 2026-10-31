@@ -28,6 +28,8 @@ interface NodeSettingsPanelProps {
     /** Called when user clicks "Apply Changes" (persisted edit) */
     onApplyChanges: (params: Record<string, any>) => void;
     onDeleteNode: () => void;
+    /** False for the sole remaining input/output terminal */
+    canDeleteNode?: boolean;
     onExpandNode: () => void;
     onCollapseNode: () => void;
     /** Called for live preview (debounced, not persisted) */
@@ -149,14 +151,19 @@ export default function NodeSettingsPanel({
     swappableActivations,
     onApplyChanges,
     onDeleteNode,
+    canDeleteNode = true,
     onExpandNode,
     onCollapseNode,
     onPreviewParams,
     shapes,
 }: NodeSettingsPanelProps) {
     const blueprint = catalog?.nodeParameterBlueprints?.[nodeTypeDraft] ?? null;
+    const isVirtualIo = selectedNodeId === "input" || selectedNodeId === "output";
     const [showAdvanced, setShowAdvanced] = useState(false);
     const previewTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+    // Always preview from latest fields — debounce closures otherwise send stale siblings
+    const nodeParamFieldsRef = useRef(nodeParamFields);
+    nodeParamFieldsRef.current = nodeParamFields;
 
     // Split blueprint params into basic and advanced
     const basicParams = blueprint
@@ -168,6 +175,21 @@ export default function NodeSettingsPanel({
 
     const hasAdvanced = (advancedParams?.length ?? 0) > 0;
 
+    const schedulePreview = (meta?: { fieldKey?: string; fieldId?: string }) => {
+        if (previewTimer.current) clearTimeout(previewTimer.current);
+        previewTimer.current = setTimeout(() => {
+            const converted = fieldsToParams(nodeParamFieldsRef.current);
+            if (!converted.params) {
+                noteAction("previewParams", "Skipped live preview — invalid field values", {
+                    error: converted.error,
+                    ...meta,
+                });
+                return;
+            }
+            if (onPreviewParams) onPreviewParams(converted.params);
+        }, 300);
+    };
+
     // Helper to read current field value by key
     const fieldValue = (key: string) =>
         nodeParamFields.find(f => f.key === key)?.value ?? "";
@@ -176,21 +198,10 @@ export default function NodeSettingsPanel({
     const updateFieldByKey = (key: string, value: string) => {
         const field = nodeParamFields.find(f => f.key === key);
         if (field) updateParamField(field.id, { value });
-        // Trigger debounced preview
-        if (previewTimer.current) clearTimeout(previewTimer.current);
-        previewTimer.current = setTimeout(() => {
-            const converted = fieldsToParams(nodeParamFields.map(f =>
-                f.key === key ? { ...f, value } : f
-            ));
-            if (!converted.params) {
-                noteAction("previewParams", "Skipped live preview — invalid field values", {
-                    error: converted.error,
-                    fieldKey: key,
-                });
-                return;
-            }
-            if (onPreviewParams) onPreviewParams(converted.params);
-        }, 300);
+        nodeParamFieldsRef.current = nodeParamFields.map(f =>
+            f.key === key ? { ...f, value } : f
+        );
+        schedulePreview({ fieldKey: key });
     };
 
     // Shape display for selected node
@@ -219,7 +230,7 @@ export default function NodeSettingsPanel({
                             )}
                         </div>
 
-                        {selectedNodeId !== "input" && selectedNodeId !== "output" && (
+                        {!isVirtualIo && (
                             <>
                                 {/* Node type selector */}
                                 <div>
@@ -311,21 +322,12 @@ export default function NodeSettingsPanel({
                                                         placeholder="value"
                                                         value={field.value}
                                                         onChange={(e) => {
-                                                            updateParamField(field.id, { value: e.target.value });
-                                                            if (previewTimer.current) clearTimeout(previewTimer.current);
-                                                            previewTimer.current = setTimeout(() => {
-                                                                const converted = fieldsToParams(nodeParamFields.map(f =>
-                                                                    f.id === field.id ? { ...f, value: e.target.value } : f
-                                                                ));
-                                                                if (!converted.params) {
-                                                                    noteAction("previewParams", "Skipped live preview — invalid field values", {
-                                                                        error: converted.error,
-                                                                        fieldId: field.id,
-                                                                    });
-                                                                    return;
-                                                                }
-                                                                if (onPreviewParams) onPreviewParams(converted.params);
-                                                            }, 300);
+                                                            const value = e.target.value;
+                                                            updateParamField(field.id, { value });
+                                                            nodeParamFieldsRef.current = nodeParamFields.map(f =>
+                                                                f.id === field.id ? { ...f, value } : f
+                                                            );
+                                                            schedulePreview({ fieldId: field.id });
                                                         }}
                                                         disabled={busy || !client}
                                                     />
@@ -376,10 +378,14 @@ export default function NodeSettingsPanel({
                                     </button>
                                     <button
                                         className="rounded-[0.5rem] border-2 border-red-500/30 hover:border-red-500/60 bg-red-950/20 hover:bg-red-500 text-red-400 hover:text-[var(--card-background)] px-[1rem] py-[0.5rem] text-xs transition w-[4rem]"
-                                        disabled={busy || !client}
+                                        disabled={busy || !client || !canDeleteNode}
                                         title={disabledReason([
                                             { when: !client, reason: "No MYLO agent connected" },
                                             { when: busy, reason: "Editor is busy" },
+                                            {
+                                                when: !canDeleteNode,
+                                                reason: "Cannot remove the only input/output node",
+                                            },
                                         ]) || "Delete node"}
                                         onClick={onDeleteNode}
                                     >
@@ -393,13 +399,32 @@ export default function NodeSettingsPanel({
                             <div className="text-xs text-[var(--text-light)] bg-white/5 p-2.5 rounded-xl border border-white/5 leading-relaxed">
                                 The <code className="text-[var(--accent-color)]">input</code> node represents the initial
                                 input tensor to the model. Its shape is configured globally.
+                                {canDeleteNode
+                                    ? " Another Input node exists, so this terminal can be removed."
+                                    : " Add another Input node before removing this terminal."}
                             </div>
                         )}
                         {selectedNodeId === "output" && (
                             <div className="text-xs text-[var(--text-light)] bg-white/5 p-2.5 rounded-xl border border-white/5 leading-relaxed">
                                 The <code className="text-[var(--accent-color)]">output</code> node represents the final
                                 output sink of the model. Its shape must match the target task.
+                                {canDeleteNode
+                                    ? " Another Output node exists, so this terminal can be removed."
+                                    : " Add another Output node before removing this terminal."}
                             </div>
+                        )}
+                        {isVirtualIo && canDeleteNode && (
+                            <button
+                                className="rounded-[0.5rem] border-2 border-red-500/30 hover:border-red-500/60 bg-red-950/20 hover:bg-red-500 text-red-400 hover:text-[var(--card-background)] px-[1rem] py-[0.5rem] text-xs transition self-start"
+                                disabled={busy || !client}
+                                title={disabledReason([
+                                    { when: !client, reason: "No MYLO agent connected" },
+                                    { when: busy, reason: "Editor is busy" },
+                                ]) || "Delete node"}
+                                onClick={onDeleteNode}
+                            >
+                                <i className="fa-solid fa-trash"></i> Remove terminal
+                            </button>
                         )}
                     <div className="mt-auto pt-3 border-t border-[var(--light-highlight)]/30 flex flex-wrap gap-2 justify-between">
                         <button

@@ -65,22 +65,25 @@ export function simplifyNodeName(node: GraphNode): string {
         .replace(/[^a-zA-Z]/g, "");
 }
 
-export function colorNode(node: Node): Node {
+export function colorNode(node: Node, noBorder?:boolean): Node {
     const category = getNodeCategory(node.data.label as string || "");
     const map = categoryColorMap[category] || categoryColorMap.other;
     node.style = {
         background: map.normal,
-        color: "#fff",
-        border: `1px solid ${map.highlight}`,
-        borderRadius: 6,
-        padding: 10
+        border: noBorder==true ? `0px solid transparent` : `1px solid ${map.highlight}`,
+        borderRadius:  6,
+        padding: noBorder==true ? 0 :10
     };
 
     return node;
 }
 
-export function getNodeColor(node: GraphNode): string {
-    const category = getNodeCategory(simplifyNodeName(node) || node.label || "");
+export function getNodeColor(nodeOrLabel: GraphNode | string): string {
+    const label = typeof nodeOrLabel === "string"
+        ? nodeOrLabel
+        : (simplifyNodeName(nodeOrLabel) || nodeOrLabel.label || "");
+
+    const category = getNodeCategory(label);
     const map = categoryColorMap[category] || categoryColorMap.other;
     return map.normal;
 }

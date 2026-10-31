@@ -15,6 +15,8 @@ import {
     saveUserPrefs,
 } from "@/lib/settings/settingsActions";
 import {
+    AI_AGENT_LIMIT_BOUNDS,
+    AI_TEMPERATURE_BOUNDS,
     LANGUAGE_OPTIONS,
     THEME_OPTIONS,
     type ThemePreference,
@@ -57,6 +59,10 @@ export default function SettingsPage() {
     const [theme, setTheme] = useState<ThemePreference>(prefs.theme);
     const [language, setLanguage] = useState(prefs.language);
     const [defaultModel, setDefaultModel] = useState(prefs.defaultModel);
+    const [aiMaxTurns, setAiMaxTurns] = useState(prefs.aiMaxTurns);
+    const [aiMaxToolCalls, setAiMaxToolCalls] = useState(prefs.aiMaxToolCalls);
+    const [aiTemperature, setAiTemperature] = useState(prefs.aiTemperature);
+    const [aiThinking, setAiThinking] = useState(prefs.aiThinking);
     const [optEpochs, setOptEpochs] = useState(prefs.optEpochs);
     const [optGenerations, setOptGenerations] = useState(prefs.optGenerations);
     const [localAgentAddress, setLocalAgentAddress] = useState(prefs.localAgentAddress);
@@ -117,6 +123,10 @@ export default function SettingsPage() {
         setTheme(prefs.theme);
         setLanguage(prefs.language);
         setDefaultModel(prefs.defaultModel);
+        setAiMaxTurns(prefs.aiMaxTurns);
+        setAiMaxToolCalls(prefs.aiMaxToolCalls);
+        setAiTemperature(prefs.aiTemperature);
+        setAiThinking(prefs.aiThinking);
         setOptEpochs(prefs.optEpochs);
         setOptGenerations(prefs.optGenerations);
         setLocalAgentAddress(prefs.localAgentAddress);
@@ -125,6 +135,10 @@ export default function SettingsPage() {
         prefs.theme,
         prefs.language,
         prefs.defaultModel,
+        prefs.aiMaxTurns,
+        prefs.aiMaxToolCalls,
+        prefs.aiTemperature,
+        prefs.aiThinking,
         prefs.optEpochs,
         prefs.optGenerations,
         prefs.localAgentAddress,
@@ -297,6 +311,99 @@ export default function SettingsPage() {
                         <p className={Style.help}>
                             Default model for new chats.
                         </p>
+                    </div>
+
+                    <div className={Style.Row}>
+                        <div className={Style.fieldGrid}>
+                            <div className={"mb-[1.618rem]"}>
+                                <h3>Max turns</h3>
+                                <input
+                                    className={Style.genericInput}
+                                    type="number"
+                                    min={AI_AGENT_LIMIT_BOUNDS.min}
+                                    max={AI_AGENT_LIMIT_BOUNDS.max}
+                                    value={aiMaxTurns}
+                                    disabled={pending}
+                                    onChange={(e) =>
+                                        setAiMaxTurns(Number(e.target.value) || AI_AGENT_LIMIT_BOUNDS.min)
+                                    }
+                                    onBlur={() => {
+                                        if (aiMaxTurns === prefs.aiMaxTurns) return;
+                                        persist({ aiMaxTurns }, "AI agent limits updated");
+                                    }}
+                                />
+                            </div>
+                            <div className={"mb-[0.5rem]"}>
+                                <h3>Max tool calls</h3>
+                                <input
+                                    className={Style.genericInput}
+                                    type="number"
+                                    min={AI_AGENT_LIMIT_BOUNDS.min}
+                                    max={AI_AGENT_LIMIT_BOUNDS.max}
+                                    value={aiMaxToolCalls}
+                                    disabled={pending}
+                                    onChange={(e) =>
+                                        setAiMaxToolCalls(
+                                            Number(e.target.value) || AI_AGENT_LIMIT_BOUNDS.min,
+                                        )
+                                    }
+                                    onBlur={() => {
+                                        if (aiMaxToolCalls === prefs.aiMaxToolCalls) return;
+                                        persist({ aiMaxToolCalls }, "AI agent limits updated");
+                                    }}
+                                />
+                            </div>
+                            <p className={Style.help}>
+                                Caps model rounds and total tool executions per chat message
+                                ({AI_AGENT_LIMIT_BOUNDS.min}–{AI_AGENT_LIMIT_BOUNDS.max}).
+                            </p>
+                        </div>
+                    </div>
+
+                    <div className={Style.Row}>
+                        <div className={Style.fieldGrid}>
+                            <div className={"mb-[1.618rem]"}>
+                                <h3>Temperature</h3>
+                                <input
+                                    className={Style.genericInput}
+                                    type="number"
+                                    min={AI_TEMPERATURE_BOUNDS.min}
+                                    max={AI_TEMPERATURE_BOUNDS.max}
+                                    step={0.1}
+                                    value={aiTemperature}
+                                    disabled={pending}
+                                    onChange={(e) =>
+                                        setAiTemperature(
+                                            Number(e.target.value) || AI_TEMPERATURE_BOUNDS.min,
+                                        )
+                                    }
+                                    onBlur={() => {
+                                        if (aiTemperature === prefs.aiTemperature) return;
+                                        persist({ aiTemperature }, "AI sampling updated");
+                                    }}
+                                />
+                            </div>
+                            <div className={"mb-[0.5rem]"}>
+                                <h3>Thinking</h3>
+                                <label className={"flex items-center gap-2 text-sm"}>
+                                    <input
+                                        type="checkbox"
+                                        checked={aiThinking}
+                                        disabled={pending}
+                                        onChange={(e) => {
+                                            const next = e.target.checked;
+                                            setAiThinking(next);
+                                            persist({ aiThinking: next }, "AI thinking updated");
+                                        }}
+                                    />
+                                    Request model thoughts when supported
+                                </label>
+                            </div>
+                            <p className={Style.help}>
+                                Temperature {AI_TEMPERATURE_BOUNDS.min}–{AI_TEMPERATURE_BOUNDS.max}.
+                                Thinking is ignored by models that do not support it.
+                            </p>
+                        </div>
                     </div>
 
                     <div className={Style.Row}>

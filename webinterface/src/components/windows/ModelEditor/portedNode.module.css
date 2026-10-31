@@ -1,0 +1,90 @@
+.node{
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    background-color: var(--background);
+    min-width: 10rem;
+    overflow: visible;
+    border-radius: 6px;
+}
+
+.nodeHeader{
+    padding: 0.5rem 1rem;
+    width: 100%;
+    text-align: center;
+    box-sizing: border-box;
+    border-top-right-radius: 6px;
+    border-top-left-radius: 6px;
+}
+
+.connectors{
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    width: 100%;
+    padding: 0.35rem 0;
+    box-sizing: border-box;
+}
+
+.portsHolder{
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    justify-content: flex-start;
+}
+
+.portsHolderOut{
+    align-items: flex-end;
+}
+
+.port{
+    position: relative;
+    display: flex;
+    align-items: center;
+    min-height: 1.4rem;
+    padding: 0 0.75rem;
+}
+
+.portOut{
+    justify-content: flex-end;
+}
+
+.portLabel{
+    font-size: 8px;
+    opacity: 0.6;
+    pointer-events: none;
+    white-space: nowrap;
+    color: #fff;
+    line-height: 1;
+}
+
+.portLabelOut{
+    text-align: right;
+}
+
+.source{
+    position: relative;
+    left: 5px;
+    width: 1.2rem;
+    height: 1.2rem;
+}
+
+.target{
+    position: relative;
+    top: 4px;
+    left:2px;
+    font-size: 0.7rem;
+    width: 1.2rem;
+    height: 1.2rem;
+}
+
+.handle{
+    width: 16px;
+    height: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.15s;
+    border: none;
+    background: none;
+}

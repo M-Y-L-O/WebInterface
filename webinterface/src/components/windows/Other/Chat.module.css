@@ -183,3 +183,53 @@
     opacity: 0.45;
     cursor: not-allowed;
 }
+
+.continueBtn {
+    margin-top: 0.6rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    background: transparent;
+    border: 1px solid var(--primary);
+    color: var(--primary);
+    border-radius: 0.5rem;
+    padding: 0.35rem 0.75rem;
+    font-size: 0.8rem;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.continueBtn:hover {
+    background: color-mix(in srgb, var(--primary) 12%, transparent);
+}
+
+.suggestions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.45rem;
+    margin-top: 0.35rem;
+}
+
+.suggestionChip {
+    text-align: left;
+    background: var(--background);
+    border: 1px solid var(--light-highlight);
+    color: var(--text);
+    border-radius: 0.65rem;
+    padding: 0.45rem 0.7rem;
+    font-size: 0.78rem;
+    line-height: 1.35;
+    cursor: pointer;
+    max-width: 100%;
+    transition: border-color 0.15s ease, color 0.15s ease;
+}
+
+.suggestionChip:hover {
+    border-color: var(--primary);
+    color: var(--primary);
+}
+
+.composer .input {
+    min-height: 2.5rem;
+    max-height: 8rem;
+}

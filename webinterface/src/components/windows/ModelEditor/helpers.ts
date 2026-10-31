@@ -108,6 +108,60 @@ export function connectionGuard(source: string, target: string): string | null {
     return null;
 }
 
+/** Role of a canvas / descriptor node for IO terminal rules. */
+export function ioRoleOf(node: {
+    id?: string | number;
+    type?: string;
+    group?: string;
+    label?: string;
+    data?: { nodeType?: string };
+}): "input" | "output" | null {
+    const id = String(node.id ?? "").toLowerCase();
+    if (id === "input") return "input";
+    if (id === "output") return "output";
+    const type = String(
+        node.type || node.group || node.data?.nodeType || node.label || "",
+    ).toLowerCase();
+    if (type === "input") return "input";
+    if (type === "output") return "output";
+    return null;
+}
+
+export function countIoRoles(
+    nodes: Array<{
+        id?: string | number;
+        type?: string;
+        group?: string;
+        label?: string;
+        data?: { nodeType?: string };
+    }>,
+): { input: number; output: number } {
+    let input = 0;
+    let output = 0;
+    for (const node of nodes) {
+        const role = ioRoleOf(node);
+        if (role === "input") input += 1;
+        else if (role === "output") output += 1;
+    }
+    return { input, output };
+}
+
+/** Virtual / typed IO nodes are deletable only when another of that role remains. */
+export function isIoNodeDeletable(
+    node: {
+        id?: string | number;
+        type?: string;
+        group?: string;
+        label?: string;
+        data?: { nodeType?: string };
+    },
+    roleCounts: { input: number; output: number },
+): boolean {
+    const role = ioRoleOf(node);
+    if (!role) return true;
+    return roleCounts[role] > 1;
+}
+
 export function paramTypeOf(value: any): ParamFieldType {
     if (typeof value === "number") return "number";
     if (typeof value === "boolean") return "boolean";
@@ -178,8 +232,10 @@ export function buildReactFlow(
     const rawNodes: GraphNode[] = graph?.nodes || [];
     const rawEdges: GraphEdge[] = graph?.edges || [];
 
+    const roleCounts = countIoRoles(rawNodes);
+
     const rfNodes: Node[] = rawNodes.map((node) => {
-        const nodeType = String(node.type || node.label || "");
+        const nodeType = String(node.type || node.group || node.label || "");
         const ports = catalog?.nodePorts?.[nodeType] ?? null;
 
         return {
@@ -191,10 +247,12 @@ export function buildReactFlow(
                 ports,
             },
             position: {x: 0, y: 0},
-            deletable: String(node.id) !== "input" && String(node.id) !== "output",
+            deletable: isIoNodeDeletable(node, roleCounts),
             ...nodeDefaults,
         };
-    }).map((n) => colorNode(n));
+    })
+        .map((n) => colorNode(n, true));
+
 
     const rfEdges: Edge[] = rawEdges.map((edge, i) => ({
         id: String(edge.id ?? i),

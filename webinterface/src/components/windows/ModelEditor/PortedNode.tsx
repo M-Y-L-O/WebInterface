@@ -3,6 +3,8 @@
 import React from "react";
 import { Handle, Position, NodeProps } from "@xyflow/react";
 import { CatalogNodePorts } from "./types";
+import Style from "./portedNode.module.css"
+import {getNodeColor} from "@/lib/windows/visualiserHelpers";
 
 interface PortedNodeData {
     label: string;
@@ -19,15 +21,13 @@ interface PortedNodeData {
  * the catalog's nodePorts data. Falls back gracefully to a single left/right
  * handle pair when port information is unavailable.
  */
-export default function PortedNode({ data, selected }: NodeProps) {
+export default function PortedNode({ data }: NodeProps) {
     const nodeData = data as unknown as PortedNodeData;
     const { label, ports, invalidPorts, validPorts } = nodeData;
+    const color = getNodeColor(label);
 
     const inputPorts = ports?.inputs ?? [{ id: "input", required: true }];
     const outputPorts = ports?.outputs ?? [{ id: "output", required: false }];
-
-    const portCount = Math.max(inputPorts.length, outputPorts.length);
-    const nodeHeight = Math.max(48, portCount * 26 + 16);
 
     function portColor(portId: string, side: "in" | "out") {
         if (validPorts?.has(`${side}:${portId}`)) return "#4ade80";
@@ -36,122 +36,85 @@ export default function PortedNode({ data, selected }: NodeProps) {
     }
 
     return (
-        <div
-            style={{
-                minWidth: 130,
-                minHeight: nodeHeight,
-                padding: "8px 12px",
-                display: "flex",
-                flexDirection: "column",
-                justifyContent: "center",
-                position: "relative",
-                borderRadius: 6,
-                background: selected ? undefined : undefined, // colorNode handles bg
-                boxSizing: "border-box",
-            }}
-        >
-            {/* Input handles — left side */}
-            {inputPorts.map((port, idx) => {
-                const totalPorts = inputPorts.length;
-                const top = totalPorts === 1
-                    ? "50%"
-                    : `${((idx + 0.5) / totalPorts) * 100}%`;
-
-                const color = portColor(port.id, "in");
-
-                return (
-                    <React.Fragment key={`in-${port.id}`}>
-                        <Handle
-                            type="target"
-                            position={Position.Left}
-                            id={port.id}
-                            style={{
-                                top,
-                                background: color ?? (port.required ? "#f87171" : "#94a3b8"),
-                                width: 8,
-                                height: 8,
-                                border: "2px solid rgba(255,255,255,0.3)",
-                                transition: "background 0.15s",
-                            }}
-                        />
-                        {/* Port label */}
-                        <span
-                            style={{
-                                position: "absolute",
-                                left: 12,
-                                top,
-                                transform: "translateY(-50%)",
-                                fontSize: 8,
-                                opacity: 0.6,
-                                pointerEvents: "none",
-                                whiteSpace: "nowrap",
-                                color: "#fff",
-                            }}
-                        >
-                            {port.id}
-                        </span>
-                    </React.Fragment>
-                );
-            })}
-
-            {/* Node label — centred */}
+        <div className={Style.node}>
             <div
                 style={{
-                    textAlign: "center",
-                    fontSize: 11,
-                    fontWeight: 600,
-                    color: "#fff",
-                    wordBreak: "break-word",
-                    padding: "0 20px",
+                    background: color ?? "var(--card-background)",
                 }}
+                className={Style.nodeHeader}
             >
                 {label}
             </div>
+            <div className={Style.connectors}>
+                {/* Input handles — left side, stacked under header */}
+                <div className={Style.portsHolder}>
+                    {inputPorts.map((port) => {
+                        const accent = portColor(port.id, "in");
 
-            {/* Output handles — right side */}
-            {outputPorts.map((port, idx) => {
-                const totalPorts = outputPorts.length;
-                const top = totalPorts === 1
-                    ? "50%"
-                    : `${((idx + 0.5) / totalPorts) * 100}%`;
+                        return (
+                            <div className={Style.port} key={`in-${port.id}`}>
+                                <Handle
+                                    type="target"
+                                    position={Position.Left}
+                                    id={port.id}
+                                    className={Style.handle}
+                                    style={{
+                                        width: 16,
+                                        height: 16,
+                                        border: "none",
+                                        background: "none",
+                                    }}
+                                >
+                                    <div
+                                        style={{ color: accent ?? "#ffffff" }}
+                                        className={Style.target}
+                                    >
+                                        <i className={"fa-solid fa-circle-half"}></i>
+                                    </div>
+                                </Handle>
+                                <span className={Style.portLabel}>{port.id}</span>
+                            </div>
+                        );
+                    })}
+                </div>
 
-                const color = portColor(port.id, "out");
+                {/* Output handles — right side, stacked under header */}
+                <div className={`${Style.portsHolder} ${Style.portsHolderOut}`}>
+                    {outputPorts.map((port) => {
+                        const accent = portColor(port.id, "out");
 
-                return (
-                    <React.Fragment key={`out-${port.id}`}>
-                        <Handle
-                            type="source"
-                            position={Position.Right}
-                            id={port.id}
-                            style={{
-                                top,
-                                background: color ?? "#38bdf8",
-                                width: 8,
-                                height: 8,
-                                border: "2px solid rgba(255,255,255,0.3)",
-                                transition: "background 0.15s",
-                            }}
-                        />
-                        {/* Port label */}
-                        <span
-                            style={{
-                                position: "absolute",
-                                right: 12,
-                                top,
-                                transform: "translateY(-50%)",
-                                fontSize: 8,
-                                opacity: 0.6,
-                                pointerEvents: "none",
-                                whiteSpace: "nowrap",
-                                color: "#fff",
-                                textAlign: "right",
-                            }}
-                        >
-                            {port.id}
-                        </span>
-                    </React.Fragment>
-                );
-            })}
+                        return (
+                            <div
+                                className={`${Style.port} ${Style.portOut}`}
+                                key={`out-${port.id}`}
+                            >
+                                <span className={`${Style.portLabel} ${Style.portLabelOut}`}>
+                                    {port.id}
+                                </span>
+                                <Handle
+                                    type="source"
+                                    position={Position.Right}
+                                    id={port.id}
+                                    className={Style.handle}
+                                    style={{
+                                        width: 16,
+                                        height: 16,
+                                        border: "none",
+                                        background: "none",
+                                    }}
+                                >
+                                    <div
+                                        style={{ color: accent ?? "#ffffff" }}
+                                        className={Style.source}
+                                    >
+                                        <i className={"fa-solid fa-caret-right"}></i>
+                                    </div>
+                                </Handle>
+                            </div>
+                        );
+                    })}
+                </div>
+            </div>
         </div>
     );
 }

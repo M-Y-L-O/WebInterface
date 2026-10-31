@@ -1,4 +1,4 @@
-import {pgTable, text, timestamp, boolean, uniqueIndex, integer} from "drizzle-orm/pg-core";
+import {pgTable, text, timestamp, boolean, uniqueIndex, integer, doublePrecision, jsonb, index} from "drizzle-orm/pg-core";
 import {users} from "@/db/schemas/nextAuth";
 
 export const userSettings = pgTable("usersettings", {
@@ -7,6 +7,10 @@ export const userSettings = pgTable("usersettings", {
     theme: text("theme").notNull().default("dark"),
     language: text("language").notNull().default("en"),
     defaultModel: text("defaultModel").notNull().default("gemini-2.5-flash"),
+    aiMaxTurns: integer("aiMaxTurns").notNull().default(12),
+    aiMaxToolCalls: integer("aiMaxToolCalls").notNull().default(32),
+    aiTemperature: doublePrecision("aiTemperature").notNull().default(0.4),
+    aiThinking: boolean("aiThinking").notNull().default(false),
     optEpochs: integer("optEpochs").notNull().default(10),
     optGenerations: integer("optGenerations").notNull().default(5),
     localAgentAddress: text("localAgentAddress").notNull().default("http://127.0.0.1:8080"),
@@ -14,6 +18,21 @@ export const userSettings = pgTable("usersettings", {
     lastUsed: timestamp("lastUsed", {mode: "date"}).notNull().defaultNow(),
 }, (t) => [
     uniqueIndex("usersettings_user_uidx").on(t.userId),
+])
+
+/** Persisted AI assistant threads, keyed by user + project. */
+export const aiChats = pgTable("ai_chats", {
+    id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+    userId: text("userId").notNull().references(() => users.id, { onDelete: "cascade" }),
+    projectKey: text("projectKey").notNull(),
+    title: text("title").notNull().default("Chat"),
+    messages: jsonb("messages").notNull().$type<unknown[]>().default([]),
+    geminiContents: jsonb("geminiContents").notNull().$type<unknown[]>().default([]),
+    model: text("model"),
+    updatedAt: timestamp("updatedAt", { mode: "date" }).notNull().defaultNow(),
+    createdAt: timestamp("createdAt", { mode: "date" }).notNull().defaultNow(),
+}, (t) => [
+    index("ai_chats_user_project_idx").on(t.userId, t.projectKey),
 ])
 
 /**
